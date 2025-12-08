@@ -1,0 +1,10 @@
+{
+  "role": "sensor",
+  "central": null,
+  "sensor": {
+    "sensor_name": "TEST_SENSOR",
+    "auth_user": "sx_yVcVNqzl",
+    "auth_pass": "GGVliJV1W5ZU40PXLg19XQ"
+  },
+  "box_id": "bx_15fb28fdf36e456a86d09952e469cd7c_8EKrD0eyJsg"
+}

@@ -1,0 +1,33 @@
+{% extends "sensor/base_sensor.html" %}
+{% block title %}صداهای سنسور - {{ ident.sensor_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>لیست صداهای ضبط شده</h2>
+  {% if segments %}
+    <table>
+      <tr>
+        <th>زمان</th>
+        <th>مدت (ثانیه)</th>
+        <th>برچسب</th>
+        <th>پخش</th>
+      </tr>
+      {% for s in segments %}
+        <tr>
+          <td>{{ s.ts }}</td>
+          <td>{{ "%.1f"|format(s.duration_sec) }}</td>
+          <td>{{ s.label if s.label else "-" }}</td>
+          <td>
+            <audio controls>
+              <source src="{{ url_for('api_audio_file', seg_id=s.id) }}" type="audio/wav" />
+            </audio>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>هنوز هیچ segment صدایی ثبت نشده است.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

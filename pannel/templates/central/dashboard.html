@@ -1,0 +1,129 @@
+{% extends "central/base_central.html" %}
+{% block title %}وضعیت مرکزی - {{ central.ident.cluster_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="flex-row">
+    <div class="flex-col">
+      <h3>سنسور محیطی مرکزی</h3>
+      {% set env = central.env %}
+      <p style="font-size:12px; opacity:0.8;">
+        آخرین نمونه: {{ env.ts or "نامشخص" }}
+      </p>
+      <table>
+        <tr><th>پارامتر</th><th>مقدار</th></tr>
+        <tr><td>دما (°C)</td><td>{{ env.temp if env.temp is not none else "-" }}</td></tr>
+        <tr><td>رطوبت (%)</td><td>{{ env.hum if env.hum is not none else "-" }}</td></tr>
+        <tr>
+          <td>گاز (v)</td>
+          <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+        </tr>
+        <tr>
+          <td>Δگاز</td>
+          <td>
+            {{ env.gas_dv if env.gas_dv is not none else "-" }}
+            {% if env.gas_high %}
+              <span class="badge alert">HIGH</span>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="flex-col">
+      <h3>سلامت باکس مرکزی</h3>
+      {% if central.health %}
+        {% set h = central.health %}
+        <p style="font-size:12px; opacity:0.8;">
+          آخرین بروزرسانی: {{ h.ts or "نامشخص" }}
+        </p>
+        <table>
+          <tr><th>پارامتر</th><th>مقدار</th></tr>
+          <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) }}%</td></tr>
+          <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) }}%</td></tr>
+          <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) }}%</td></tr>
+          <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) }}%</td></tr>
+        </table>
+        {% if h.last_issue %}
+          <p style="margin-top:8px; font-size:12px;">
+            آخرین مشکل:
+            <span class="badge warn">{{ h.last_issue }}</span>
+          </p>
+        {% endif %}
+      {% else %}
+        <p>هنوز اطلاعات سلامت ثبت نشده است.</p>
+      {% endif %}
+    </div>
+
+    <div class="flex-col">
+      <h3>خلاصه‌ی صدا</h3>
+      {% set a = central.audio_summary.last_segment if central.audio_summary and central.audio_summary.last_segment is defined else None %}
+      {% if a %}
+        <table>
+          <tr><th>زمان</th><th>مدت</th><th>برچسب</th></tr>
+          <tr>
+            <td>{{ a.ts }}</td>
+            <td>{{ "%.1f"|format(a.duration_sec) }} ثانیه</td>
+            <td>{{ a.label if a.label else "-" }}</td>
+          </tr>
+        </table>
+        <p style="font-size:12px; margin-top:8px;">
+          برای دیدن و شنیدن همه‌ی صداها به تب <a href="{{ url_for('central_audio') }}">صداها</a> برو.
+        </p>
+      {% else %}
+        <p>هنوز هیچ صدایی ثبت نشده است.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>وضعیت باکس‌های سنسور</h3>
+  {% if sensors %}
+    <table>
+      <tr>
+        <th>نام سنسور</th>
+        <th>ID</th>
+        <th>IP</th>
+        <th>آخرین دیده شدن</th>
+        <th>دما</th>
+        <th>رطوبت</th>
+        <th>گاز</th>
+        <th>وضعیت</th>
+        <th>لینک پنل سنسور</th>
+      </tr>
+      {% for s in sensors %}
+        {% set env = s.env or {} %}
+        <tr>
+          <td>{{ s.sensor_name }}</td>
+          <td>{{ s.sensor_id }}</td>
+          <td>{{ s.ip or "-" }}</td>
+          <td>{{ s.last_seen }}</td>
+          <td>{{ env.temp if env.temp is not none else "-" }}</td>
+          <td>{{ env.hum if env.hum is not none else "-" }}</td>
+          <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+          <td>
+            {% if s.state == "online" %}
+              <span class="badge online">آنلاین</span>
+            {% elif s.state == "offline" %}
+              <span class="badge offline">آفلاین</span>
+            {% else %}
+              <span class="badge unknown">نامشخص</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.ip %}
+              <a href="http://{{ s.ip }}:8080/" target="_blank">باز کردن پنل</a>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>هنوز هیچ باکس سنسوری به این باکس متصل نشده است.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

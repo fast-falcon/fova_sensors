@@ -1,0 +1,57 @@
+{% extends "central/base_central.html" %}
+{% block title %}صداها - {{ ident.cluster_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h3>صداهای ضبط شده روی باکس مرکزی</h3>
+  {% if central_segments %}
+    <table>
+      <tr>
+        <th>زمان</th>
+        <th>مدت (ثانیه)</th>
+        <th>برچسب</th>
+      </tr>
+      {% for s in central_segments %}
+        <tr>
+          <td>{{ s.ts }}</td>
+          <td>{{ "%.1f"|format(s.duration_sec) }}</td>
+          <td>{{ s.label if s.label else "-" }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>هنوز هیچ صدایی روی باکس مرکزی ثبت نشده است.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>سنسورها</h3>
+  {% if sensors %}
+    <table>
+      <tr>
+        <th>نام</th>
+        <th>ID</th>
+        <th>IP</th>
+        <th>لینک پنل</th>
+      </tr>
+      {% for st in sensors %}
+        <tr>
+          <td>{{ st.sensor_name }}</td>
+          <td>{{ st.sensor_id }}</td>
+          <td>{{ st.ip or "-" }}</td>
+          <td>
+            {% if st.ip %}
+              <a href="http://{{ st.ip }}:8080/" target="_blank">پنل سنسور</a>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>سنسوری ثبت نشده است.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

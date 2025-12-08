@@ -1,0 +1,88 @@
+{% extends "sensor/base_sensor.html" %}
+{% block title %}وضعیت سنسور - {{ ident.sensor_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>وضعیت محیطی</h2>
+  {% set env = status.env %}
+  <p style="font-size:13px; opacity:0.8;">
+    آخرین نمونه: {{ env.ts or "نامشخص" }}
+  </p>
+  <table>
+    <tr>
+      <th>پارامتر</th>
+      <th>مقدار</th>
+    </tr>
+    <tr>
+      <td>دما (°C)</td>
+      <td>{{ env.temp if env.temp is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>رطوبت (%)</td>
+      <td>{{ env.hum if env.hum is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>گاز (v)</td>
+      <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>Δگاز</td>
+      <td>
+        {{ env.gas_dv if env.gas_dv is not none else "-" }}
+        {% if env.gas_high %}
+          <span class="badge crit">HIGH</span>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>سلامت سیستم</h2>
+  {% if status.health %}
+    {% set h = status.health %}
+    <p style="font-size:13px; opacity:0.8;">
+      آخرین بروزرسانی: {{ h.ts or "نامشخص" }}
+    </p>
+    <table>
+      <tr><th>پارامتر</th><th>مقدار</th></tr>
+      <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) }}%</td></tr>
+      <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) }}%</td></tr>
+      <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) }}%</td></tr>
+      <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) }}%</td></tr>
+    </table>
+    {% if h.last_issue %}
+      <p style="margin-top:8px; font-size:12px;">
+        آخرین مشکل ثبت‌شده:
+        <span class="badge warn">{{ h.last_issue }}</span>
+      </p>
+    {% endif %}
+  {% else %}
+    <p>هنوز اطلاعات سلامت ثبت نشده است.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>خلاصه‌ی صدا</h2>
+  {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
+  {% if a %}
+    <p style="font-size:13px; opacity:0.8;">
+      آخرین segment ثبت‌شده:
+    </p>
+    <table>
+      <tr><th>زمان</th><th>مدت (ثانیه)</th><th>برچسب</th></tr>
+      <tr>
+        <td>{{ a.ts }}</td>
+        <td>{{ "%.1f"|format(a.duration_sec) }}</td>
+        <td>{{ a.label if a.label else "-" }}</td>
+      </tr>
+    </table>
+    <p style="font-size:12px; margin-top:8px;">
+      برای دیدن و شنیدن همه‌ی صداها به تب <a href="{{ url_for('sensor_audio_list') }}">صداها</a> برو.
+    </p>
+  {% else %}
+    <p>هنوز هیچ صدایی ثبت نشده است.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
