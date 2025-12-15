@@ -203,6 +203,55 @@ def _build_sensor_cards() -> List[Dict[str, Any]]:
     return sensor_cards
 
 
+def _build_system_state() -> Dict[str, Any]:
+    """Snapshot فقط داده‌های سیستمی (health) برای داشبورد/پولینگ."""
+    central = _build_central_status()
+    sensors = get_sensors_states()
+
+    sensor_health = []
+    for st in sensors:
+        sensor_health.append(
+            {
+                "sensor_id": st.sensor_id,
+                "sensor_name": st.sensor_name,
+                "ip": st.ip,
+                "last_seen": st.last_seen,
+                "state": compute_state_label(st),
+                "health": _normalize_health(getattr(st, "health", None)),
+            }
+        )
+
+    return {
+        "central": {"health": central.get("health")},
+        "sensors": sensor_health,
+    }
+
+
+def _build_audio_state() -> Dict[str, Any]:
+    """Snapshot خلاصه‌ی صداها برای داشبورد/پولینگ."""
+    central = _build_central_status()
+    sensors = get_sensors_states()
+
+    sensor_audio = []
+    for st in sensors:
+        sensor_audio.append(
+            {
+                "sensor_id": st.sensor_id,
+                "sensor_name": st.sensor_name,
+                "state": compute_state_label(st),
+                "audio_summary": st.audio_summary or {},
+            }
+        )
+
+    return {
+        "central": {
+            "sensor_id": central.get("ident", {}).get("box_id"),
+            "audio_summary": central.get("audio_summary") or {},
+        },
+        "sensors": sensor_audio,
+    }
+
+
 # ---------- UI routes ----------
 
 @app.route("/")
@@ -261,6 +310,20 @@ def api_audio_segments():
         segments = [s for s in segments if s.get("label") == label_filter]
 
     return jsonify({"sensor_id": sensor_id, "segments": segments})
+
+
+@app.route("/api/system_state", methods=["GET"])
+def api_system_state():
+    """داده‌های سلامت سیستم مرکزی و سنسورها (برای پولینگ ادواری)."""
+    init_db()
+    return jsonify(_build_system_state())
+
+
+@app.route("/api/audio_state", methods=["GET"])
+def api_audio_state():
+    """خلاصه‌ی صداها (آخرین segmentها) برای مرکزی و سنسورها."""
+    init_db()
+    return jsonify(_build_audio_state())
 
 
 @app.route("/api/audio_file/<int:seg_id>", methods=["GET"])
