@@ -1,162 +1,88 @@
 {% extends "sensor/base_sensor.html" %}
 {% block title %}وضعیت سنسور - {{ ident.sensor_name }}{% endblock %}
 
-{% block extra_head %}
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
-  <style>
-    .section-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
-    .mini-card { background: #e0f2fe; border-radius: 12px; padding: 12px; border: 1px solid #bae6fd; }
-    .metric { font-size: 22px; font-weight: 800; color: #0ea5e9; }
-    .sub { color: #64748b; font-size: 12px; }
-    .pill { padding: 6px 10px; background: #fef9c3; border-radius: 10px; display: inline-block; margin-top: 8px; color: #854d0e; border: 1px solid #fcd34d; }
-  </style>
-{% endblock %}
-
 {% block content %}
 <div class="card">
-  <div class="section-title">وضعیت محیطی</div>
-  <div class="sub">آخرین نمونه: <span id="env-ts">{{ status.env.ts or 'نامشخص' }}</span></div>
-  <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top:10px; gap:10px;">
-    <div class="mini-card">
-      <div class="sub">دما (°C)</div>
-      <div class="metric" id="env-temp">{{ status.env.temp if status.env.temp is not none else '-' }}</div>
-    </div>
-    <div class="mini-card">
-      <div class="sub">رطوبت (%)</div>
-      <div class="metric" id="env-hum">{{ status.env.hum if status.env.hum is not none else '-' }}</div>
-    </div>
-    <div class="mini-card">
-      <div class="sub">گاز (V)</div>
-      <div class="metric" id="env-gas">{{ status.env.gas_v if status.env.gas_v is not none else '-' }}</div>
-      <div class="sub">Δگاز: <span id="env-gas-dv">{{ status.env.gas_dv if status.env.gas_dv is not none else '-' }}</span> <span id="env-gas-high">{% if status.env.gas_high %}<span class="badge crit">HIGH</span>{% endif %}</span></div>
-    </div>
-  </div>
-  <div style="margin-top:12px;">
-    <canvas id="env-chart" height="240"></canvas>
-  </div>
+  <h2>وضعیت محیطی</h2>
+  {% set env = status.env %}
+  <p style="font-size:13px; opacity:0.8;">
+    آخرین نمونه: {{ env.ts or "نامشخص" }}
+  </p>
+  <table>
+    <tr>
+      <th>پارامتر</th>
+      <th>مقدار</th>
+    </tr>
+    <tr>
+      <td>دما (°C)</td>
+      <td>{{ env.temp if env.temp is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>رطوبت (%)</td>
+      <td>{{ env.hum if env.hum is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>گاز (v)</td>
+      <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>Δگاز</td>
+      <td>
+        {{ env.gas_dv if env.gas_dv is not none else "-" }}
+        {% if env.gas_high %}
+          <span class="badge crit">HIGH</span>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
 </div>
 
 <div class="card">
-  <div class="section-title">سلامت سیستم</div>
-  <div class="sub">آخرین بروزرسانی: <span id="health-ts">{{ status.health.ts if status.health else 'نامشخص' }}</span></div>
-  <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top:10px; gap:10px;">
-    <div class="mini-card">
-      <div class="sub">CPU</div>
-      <div class="metric" id="health-cpu">{% if status.health and status.health.cpu_percent is not none %}{{ '%.1f'|format(status.health.cpu_percent) }}%{% else %}-{% endif %}</div>
-    </div>
-    <div class="mini-card">
-      <div class="sub">RAM</div>
-      <div class="metric" id="health-ram">{% if status.health and status.health.mem_percent is not none %}{{ '%.1f'|format(status.health.mem_percent) }}%{% else %}-{% endif %}</div>
-    </div>
-    <div class="mini-card">
-      <div class="sub">Disk</div>
-      <div class="metric" id="health-disk">{% if status.health and status.health.disk_percent is not none %}{{ '%.1f'|format(status.health.disk_percent) }}%{% else %}-{% endif %}</div>
-    </div>
-    <div class="mini-card">
-      <div class="sub">Inode</div>
-      <div class="metric" id="health-inode">{% if status.health and status.health.inode_percent is not none %}{{ '%.1f'|format(status.health.inode_percent) }}%{% else %}-{% endif %}</div>
-    </div>
-  </div>
-  {% if status.health and status.health.last_issue %}
-    <div class="pill" id="health-issue">آخرین مشکل: {{ status.health.last_issue }}</div>
+  <h2>سلامت سیستم</h2>
+  {% if status.health %}
+    {% set h = status.health %}
+    <p style="font-size:13px; opacity:0.8;">
+      آخرین بروزرسانی: {{ h.ts or "نامشخص" }}
+    </p>
+    <table>
+      <tr><th>پارامتر</th><th>مقدار</th></tr>
+      <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) }}%</td></tr>
+      <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) }}%</td></tr>
+      <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) }}%</td></tr>
+      <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) }}%</td></tr>
+    </table>
+    {% if h.last_issue %}
+      <p style="margin-top:8px; font-size:12px;">
+        آخرین مشکل ثبت‌شده:
+        <span class="badge warn">{{ h.last_issue }}</span>
+      </p>
+    {% endif %}
   {% else %}
-    <div class="sub" id="health-issue" style="display:none;"></div>
+    <p>هنوز اطلاعات سلامت ثبت نشده است.</p>
   {% endif %}
 </div>
 
 <div class="card">
-  <div class="section-title">خلاصه‌ی صدا</div>
+  <h2>خلاصه‌ی صدا</h2>
   {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
   {% if a %}
-    <table style="margin-top:8px;">
+    <p style="font-size:13px; opacity:0.8;">
+      آخرین segment ثبت‌شده:
+    </p>
+    <table>
       <tr><th>زمان</th><th>مدت (ثانیه)</th><th>برچسب</th></tr>
       <tr>
-        <td id="audio-ts">{{ a.ts }}</td>
-        <td id="audio-duration">{{ "%.1f"|format(a.duration_sec) }}</td>
-        <td id="audio-label">{{ a.label if a.label else "-" }}</td>
+        <td>{{ a.ts }}</td>
+        <td>{{ "%.1f"|format(a.duration_sec) }}</td>
+        <td>{{ a.label if a.label else "-" }}</td>
       </tr>
     </table>
+    <p style="font-size:12px; margin-top:8px;">
+      برای دیدن و شنیدن همه‌ی صداها به تب <a href="{{ url_for('sensor_audio_list') }}">صداها</a> برو.
+    </p>
   {% else %}
-    <div class="sub">هنوز هیچ صدایی ثبت نشده است.</div>
+    <p>هنوز هیچ صدایی ثبت نشده است.</p>
   {% endif %}
-  <div class="sub" style="margin-top:8px;">برای دیدن همه‌ی صداها به تب <a href="{{ url_for('sensor_audio_list') }}">صداها</a> برو.</div>
 </div>
-
-<script>
-  var envHistory = {{ status.env_history | tojson }};
-  var envChart = null;
-
-  function setText(id, value) {
-    var el = document.getElementById(id);
-    if (el) { el.textContent = value; }
-  }
-
-  function formatValue(val, suffix) {
-    if (suffix === undefined) { suffix = ''; }
-    if (val === null || val === undefined) { return '-'; }
-    if (typeof val === 'number') { return val.toFixed(1) + suffix; }
-    return val + suffix;
-  }
-
-  function renderEnvChart(history) {
-    var ctx = document.getElementById('env-chart');
-    if (!ctx) { return; }
-    var labels = history.labels || [];
-    var temp = (history.temp || []).map(function (v) { return v === null ? null : Number(v); });
-    var hum = (history.hum || []).map(function (v) { return v === null ? null : Number(v); });
-    var gas = (history.gas_v || []).map(function (v) { return v === null ? null : Number(v); });
-
-    var data = {
-      labels: labels,
-      datasets: [
-        { label: 'دما', data: temp, borderColor: '#0ea5e9', fill: false, pointRadius: 2, lineTension: 0.2 },
-        { label: 'رطوبت', data: hum, borderColor: '#22c55e', fill: false, pointRadius: 2, lineTension: 0.2 },
-        { label: 'گاز', data: gas, borderColor: '#f97316', fill: false, pointRadius: 2, lineTension: 0.2 }
-      ]
-    };
-
-    var opts = {
-      responsive: true,
-      maintainAspectRatio: false,
-      legend: { labels: { fontFamily: 'IRANSans, Vazir, sans-serif' } },
-      scales: { xAxes: [{ ticks: { display: false } }], yAxes: [{ ticks: { beginAtZero: true } }] }
-    };
-
-    if (envChart) {
-      envChart.data = data;
-      envChart.update();
-      return;
-    }
-    envChart = new Chart(ctx, { type: 'line', data: data, options: opts });
-  }
-
-  function renderEnv(env, history) {
-    setText('env-ts', env.ts || 'نامشخص');
-    setText('env-temp', formatValue(env.temp));
-    setText('env-hum', formatValue(env.hum));
-    setText('env-gas', formatValue(env.gas_v));
-    setText('env-gas-dv', formatValue(env.gas_dv));
-    var high = document.getElementById('env-gas-high');
-    if (high) { high.innerHTML = env.gas_high ? '<span class="badge crit">HIGH</span>' : ''; }
-    renderEnvChart(history || {});
-  }
-
-  function renderHealth(health) {
-    setText('health-ts', (health && health.ts) || 'نامشخص');
-    setText('health-cpu', formatValue(health && health.cpu_percent, '%'));
-    setText('health-ram', formatValue(health && health.mem_percent, '%'));
-    setText('health-disk', formatValue(health && health.disk_percent, '%'));
-    setText('health-inode', formatValue(health && health.inode_percent, '%'));
-    var issue = document.getElementById('health-issue');
-    if (issue) {
-      var text = health && health.last_issue ? 'آخرین مشکل: ' + health.last_issue : '';
-      issue.textContent = text;
-      issue.style.display = text ? 'inline-block' : 'none';
-    }
-  }
-
-  renderEnv({{ status.env | tojson }}, envHistory);
-  renderHealth({{ status.health | tojson }});
-</script>
 {% endblock %}
 
