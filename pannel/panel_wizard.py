@@ -148,7 +148,7 @@ def wizard_central_step2():
             audio_segment_seconds = 30
         online_enabled = request.form.get("online_enabled") == "on"
 
-        if not server_host:
+        if online_enabled and not server_host:
             errors.append("آدرس سرور اصلی الزامی است.")
         if audio_segment_seconds <= 0:
             errors.append("بازه ضبط صدا باید بزرگتر از صفر باشد.")
@@ -177,9 +177,9 @@ def wizard_central_confirm():
                 "cluster_name": _WIZARD_STATE["cluster_name"],
                 "hotspot_ssid": _WIZARD_STATE["hotspot_ssid"],
                 "hotspot_password": _WIZARD_STATE["hotspot_password"],
-                "server_host": _WIZARD_STATE["server_host"],
-                "server_socket_port": _WIZARD_STATE["server_socket_port"],
-                "server_http_port": _WIZARD_STATE["server_http_port"],
+                "server_host": _WIZARD_STATE.get("server_host", ""),
+                "server_socket_port": _WIZARD_STATE.get("server_socket_port", 9000),
+                "server_http_port": _WIZARD_STATE.get("server_http_port", 8000),
                 "audio_segment_seconds": _WIZARD_STATE.get("audio_segment_seconds", 30),
                 "online_enabled": _WIZARD_STATE.get("online_enabled", True),
             },

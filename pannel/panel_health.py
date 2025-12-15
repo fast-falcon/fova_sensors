@@ -41,7 +41,7 @@ _KV_KEY = "health:latest"
 def _measure_cpu_percent() -> float:
     if psutil is not None:
         try:
-            return float(psutil.cpu_percent(interval=0.1))
+            return float(psutil.cpu_percent(interval=0.5))
         except Exception:
             pass
     # fallback: بدون psutil → /proc/stat دو نمونه
@@ -59,7 +59,7 @@ def _measure_cpu_percent() -> float:
             return idle + iowait, total
 
         idle1, total1 = _read_cpu_times()
-        time.sleep(0.2)
+        time.sleep(0.5)
         idle2, total2 = _read_cpu_times()
         diff_idle = idle2 - idle1
         diff_total = total2 - total1

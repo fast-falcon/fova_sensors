@@ -250,6 +250,8 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         "16",
         "-c",
         str(_NATIVE_CHANNELS),
+        "-t",
+        str(int(duration_sec)),
     ]
     cmd = [su_env_path] + base_cmd if su_env_path else base_cmd
 
