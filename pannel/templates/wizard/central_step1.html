@@ -3,42 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <title>پیکربندی مرکزی - گام ۱</title>
-  <style>
-    body { margin:0; font-family:'Segoe UI', Tahoma, sans-serif; background:#f8fafc; color:#0f172a; direction:rtl; }
-    .container { max-width:560px; margin:40px auto; padding:20px; }
-    .card { background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.06); }
-    h1 { margin:0 0 12px 0; font-size:22px; }
-    label { display:block; font-weight:700; margin-top:12px; }
-    input { width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:10px; margin-top:6px; font-family:inherit; }
-    button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:#3b82f6; color:#fff; font-weight:700; cursor:pointer; }
-    button:hover { background:#2563eb; }
-    .errors { background:#fef2f2; border:1px solid #fecdd3; color:#b91c1c; padding:10px; border-radius:10px; margin-top:10px; }
-    .helper { color:#475569; font-size:13px; margin-top:4px; }
-  </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>گام ۱: اطلاعات اولیه مرکزی</h1>
-      {% if errors %}
-        <div class="errors">
-          <ul>{% for err in errors %}<li>{{ err }}</li>{% endfor %}</ul>
-        </div>
-      {% endif %}
-      <form method="post">
-        <label>نام مجموعه (Cluster):
-          <input type="text" name="cluster_name" value="{{ cluster_name }}" required />
-        </label>
-        <div class="helper">مثال: دیتاسنتر یا نام سازمان</div>
-        <label>SSID هات‌اسپات:
-          <input type="text" name="hotspot_ssid" value="{{ hotspot_ssid }}" required />
-        </label>
-        <label>رمز هات‌اسپات:
-          <input type="password" name="hotspot_password" value="{{ hotspot_password }}" required />
-        </label>
-        <button type="submit">تایید و ادامه</button>
-      </form>
+  <h1>گام ۱: اطلاعات اولیه مرکزی</h1>
+  {% if errors %}
+    <ul style="color:red">
+      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+  <form method="post">
+    <div>
+      <label>نام مجموعه (Cluster):</label>
+      <input type="text" name="cluster_name" value="{{ cluster_name }}" required />
     </div>
-  </div>
+    <div>
+      <label>SSID هات‌اسپات:</label>
+      <input type="text" name="hotspot_ssid" value="{{ hotspot_ssid }}" required />
+    </div>
+    <div>
+      <label>رمز هات‌اسپات:</label>
+      <input type="password" name="hotspot_password" value="{{ hotspot_password }}" required />
+    </div>
+    <button type="submit">تایید و ادامه</button>
+  </form>
 </body>
 </html>
