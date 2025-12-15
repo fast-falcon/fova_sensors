@@ -230,15 +230,21 @@
           renderSensors(payload.sensors);
         }
       } catch (e) {
+        alert('dashboard json parse error: ' + (e && e.message ? e.message : e));
         console.warn('dashboard json parse error', e);
       }
     };
 
+    const handleError = (prefix, err) => {
+      alert(prefix + ': ' + (err && err.message ? err.message : err));
+      console.warn(prefix, err);
+    };
+
     if (window.fetch) {
-      fetch('/api/dashboard_state')
+      fetch('/api/dashboard_state', { cache: 'no-store' })
         .then((r) => r.text())
         .then(handleResponse)
-        .catch((err) => console.warn('dashboard fetch error', err));
+        .catch((err) => handleError('dashboard fetch error', err));
       return;
     }
 
@@ -246,14 +252,19 @@
     try {
       const xhr = new XMLHttpRequest();
       xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-          handleResponse(xhr.responseText);
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            handleResponse(xhr.responseText);
+          } else {
+            handleError('dashboard xhr error', 'HTTP ' + xhr.status);
+          }
         }
       };
       xhr.open('GET', '/api/dashboard_state', true);
+      xhr.setRequestHeader('Cache-Control', 'no-cache');
       xhr.send();
     } catch (err) {
-      console.warn('dashboard xhr error', err);
+      handleError('dashboard xhr error', err);
     }
   }
 

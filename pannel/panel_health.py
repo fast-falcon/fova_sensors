@@ -39,11 +39,21 @@ _KV_KEY = "health:latest"
 
 
 def _measure_cpu_percent() -> float:
+    """
+    تلاش برای به‌دست آوردن مقدار واقعی‌تر CPU با میانگین‌گیری کوتاه.
+
+    psutil → دو نمونه‌ی پشت‌سرهم با interval کوچک تا مقدار اسپایک اولیه حذف شود.
+    fallback → /proc/stat با وقفه‌ی ۱ ثانیه‌ای.
+    """
+
     if psutil is not None:
         try:
-            return float(psutil.cpu_percent(interval=0.5))
+            # اولین نمونه را دور می‌ریزیم تا warm-up اولیه psutil حذف شود
+            psutil.cpu_percent(interval=0.2)
+            return float(psutil.cpu_percent(interval=0.8))
         except Exception:
             pass
+
     # fallback: بدون psutil → /proc/stat دو نمونه
     try:
         def _read_cpu_times():
@@ -59,7 +69,7 @@ def _measure_cpu_percent() -> float:
             return idle + iowait, total
 
         idle1, total1 = _read_cpu_times()
-        time.sleep(0.5)
+        time.sleep(1.0)
         idle2, total2 = _read_cpu_times()
         diff_idle = idle2 - idle1
         diff_total = total2 - total1
