@@ -1,22 +1,11 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa">
 <head>
   <meta charset="UTF-8" />
   <title>در حال ریبوت</title>
-  <style>
-    body { font-family: "IRANSans", "Vazir", "Segoe UI", sans-serif; background: linear-gradient(135deg,#0f172a,#0b1220); color:#0f172a; margin:0; padding:20px; }
-    .container { max-width: 600px; margin: 0 auto; }
-    .card { background:#f8fafc; border-radius:16px; padding:20px; box-shadow:0 12px 30px rgba(15,23,42,0.25); border:1px solid #e2e8f0; text-align:center; }
-    h1 { margin-top:0; color:#0ea5e9; font-size:22px; }
-    p { color:#0f172a; }
-  </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>ریستارت دستگاه</h1>
-      <p>تنظیمات {{ 'مرکزی' if role == 'central' else 'سنسور' }} ذخیره شد. دستگاه به زودی ریبوت می‌شود.</p>
-    </div>
-  </div>
+  <h1>ریستارت دستگاه</h1>
+  <p>تنظیمات {{ 'مرکزی' if role == 'central' else 'سنسور' }} ذخیره شد. دستگاه به زودی ریبوت می‌شود.</p>
 </body>
 </html>
