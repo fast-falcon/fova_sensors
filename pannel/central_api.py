@@ -105,6 +105,32 @@ def _merge_env_with_db(env: Optional[Dict[str, Any]], sensor_id: str) -> Dict[st
     return merged
 
 
+def _compose_audio_summary(
+    sensor_id: str, current: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Ensure audio_summary includes last_segment (fallback به DB).
+
+    داشبورد به last_segment نیاز دارد؛ اگر سنسور در حافظه نداشت، آخرین صدای DB را می‌آوریم.
+    """
+
+    current = current or {}
+    if current.get("last_segment"):
+        return current
+
+    last_audio = get_last_audio_segment(sensor_id) or None
+    if not last_audio:
+        return {}
+
+    return {
+        "last_segment": {
+            "id": last_audio.get("id"),
+            "ts": last_audio.get("ts"),
+            "duration_sec": last_audio.get("duration_sec"),
+            "label": last_audio.get("label"),
+        }
+    }
+
+
 def _normalize_health(h: Optional["HealthStatus"]) -> Optional[Dict[str, Any]]:
     if not h:
         return None
@@ -159,18 +185,7 @@ def _build_central_status() -> Dict[str, Any]:
     health = _normalize_health(h)
 
     # audio
-    audio = get_last_audio_segment(ident["box_id"]) or None
-    if audio:
-        audio_summary = {
-            "last_segment": {
-                "id": audio["id"],
-                "ts": audio["ts"],
-                "duration_sec": audio["duration_sec"],
-                "label": audio["label"],
-            }
-        }
-    else:
-        audio_summary = {}
+    audio_summary = _compose_audio_summary(ident["box_id"])
 
     return {
         "ident": ident,
@@ -186,6 +201,7 @@ def _build_sensor_cards() -> List[Dict[str, Any]]:
 
     for st in sensors:
         state_label = compute_state_label(st)
+        audio_summary = _compose_audio_summary(st.sensor_id, st.audio_summary)
         env = _merge_env_with_db(st.env, st.sensor_id)
         sensor_cards.append(
             {
@@ -194,7 +210,7 @@ def _build_sensor_cards() -> List[Dict[str, Any]]:
                 "ip": st.ip,
                 "last_seen": st.last_seen,
                 "env": env,
-                "audio_summary": st.audio_summary,
+                "audio_summary": audio_summary,
                 "health": _normalize_health(getattr(st, "health", None)),
                 "state": state_label,
             }
@@ -239,14 +255,17 @@ def _build_audio_state() -> Dict[str, Any]:
                 "sensor_id": st.sensor_id,
                 "sensor_name": st.sensor_name,
                 "state": compute_state_label(st),
-                "audio_summary": st.audio_summary or {},
+                "audio_summary": _compose_audio_summary(st.sensor_id, st.audio_summary),
             }
         )
 
     return {
         "central": {
             "sensor_id": central.get("ident", {}).get("box_id"),
-            "audio_summary": central.get("audio_summary") or {},
+            "audio_summary": _compose_audio_summary(
+                central.get("ident", {}).get("box_id", ""),
+                central.get("audio_summary"),
+            ),
         },
         "sensors": sensor_audio,
     }
