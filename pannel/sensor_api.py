@@ -36,7 +36,7 @@ from panel_sensors_local import get_latest_env
 from panel_health import get_health_status
 from panel_audio_local import list_audio_segments, get_last_audio_segment
 from panel_net_common import parse_basic_auth_header
-from panel_db import init_db, get_sensor_history
+from panel_db import init_db
 
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -87,29 +87,7 @@ def require_basic_auth(view_func):
     return wrapper
 
 
-def _build_env_history(sensor_id: str, env: Dict[str, Any], limit: int = 30) -> List[Dict[str, Any]]:
-    history_rows = list(get_sensor_history(sensor_id, limit=limit))
-    if env and env.get("ts"):
-        if not history_rows or history_rows[-1][0] != env.get("ts"):
-            history_rows.append((env.get("ts"), env))
-
-    normalized: List[Dict[str, Any]] = []
-    for ts_iso, row in history_rows[-limit:]:
-        normalized.append(
-            {
-                "ts": ts_iso,
-                "temp": row.get("temp"),
-                "hum": row.get("hum"),
-                "gas_v": row.get("gas_v"),
-                "gas_dv": row.get("gas_dv"),
-            }
-        )
-
-    return normalized
-
-
 def _build_status_dict() -> Dict[str, Any]:
-    init_db()
     ident = _get_sensor_identity()
     env_snap = get_latest_env()
     if env_snap:
@@ -161,7 +139,6 @@ def _build_status_dict() -> Dict[str, Any]:
         "sensor_id": ident["box_id"],
         "sensor_name": ident["sensor_name"],
         "env": env,
-        "env_history": _build_env_history(ident["box_id"], env),
         "health": health_dict,
         "audio_summary": audio_summary,
     }
@@ -181,12 +158,6 @@ def sensor_audio_list():
     ident = _get_sensor_identity()
     segments = list_audio_segments(ident["box_id"], limit=100)
     return render_template("sensor/audio_list.html", ident=ident, segments=segments)
-
-
-@app.route("/api/dashboard_state", methods=["GET"])
-def sensor_dashboard_state():
-    init_db()
-    return jsonify(_build_status_dict())
 
 
 # ---------- API ROUTES (for central) ----------
