@@ -12,6 +12,10 @@
   تو می‌توانی این ماژول را به اسکریپت واقعی‌ات (مثل sensor_lesten.py) وصل کنی.
 """
 
+import os
+import re
+import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -35,6 +39,81 @@ class EnvSnapshot:
 _LATEST_ENV: Optional[EnvSnapshot] = None
 _READER_THREAD: Optional[threading.Thread] = None
 _STOP_FLAG = False
+_SENSOR_LESTEN_ENV_KEY = "SENSOR_LESTEN_PATH"
+_SENSOR_LESTEN_CANDIDATES = [
+    os.path.join(os.path.dirname(__file__), "sensor_lesten.py"),
+    os.path.join(os.path.dirname(__file__), "..", "sensor_lesten.py"),
+    "sensor_lesten.py",
+]
+
+
+def _parse_sensor_lesten_line(line: str) -> Optional[Dict[str, float]]:
+    """پارسر ساده خروجی sensor_lesten.py برای استخراج دما/رطوبت/گاز."""
+
+    temp_match = re.search(r"A1D1:\s*([-+]?\d+(?:\.\d+)?)°C\s*([-+]?\d+(?:\.\d+)?)%RH", line)
+    gas_match = re.search(r"A1F1:\s*V=([-+]?\d+(?:\.\d+)?)\s*Δ=([+\-]?\d+(?:\.\d+)?)", line)
+    if not temp_match and not gas_match:
+        return None
+
+    parsed: Dict[str, float] = {}
+    if temp_match:
+        parsed["temp"] = float(temp_match.group(1))
+        parsed["hum"] = float(temp_match.group(2))
+    if gas_match:
+        parsed["gas_v"] = float(gas_match.group(1))
+        parsed["gas_dv"] = float(gas_match.group(2))
+    return parsed if parsed else None
+
+
+def _find_sensor_lesten_path() -> Optional[str]:
+    """اول از متغیر محیطی، بعد از مسیرهای معمول فایل sensor_lesten.py را پیدا می‌کند."""
+
+    env_path = os.environ.get(_SENSOR_LESTEN_ENV_KEY)
+    if env_path and os.path.exists(env_path):
+        return env_path
+    for candidate in _SENSOR_LESTEN_CANDIDATES:
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def _read_sensor_lesten_subprocess() -> Dict[str, Optional[float]]:
+    """sensor_lesten.py را اجرا می‌کند و اولین خط قابل پارس را برمی‌گرداند."""
+
+    sensor_path = _find_sensor_lesten_path()
+    if not sensor_path:
+        raise FileNotFoundError(
+            "sensor_lesten.py not found; set SENSOR_LESTEN_PATH or place it next to panel files"
+        )
+
+    proc = subprocess.Popen(
+        [sys.executable, sensor_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+    deadline = time.time() + 5.0
+    parsed: Dict[str, Optional[float]] = {"temp": None, "hum": None, "gas_v": None, "gas_dv": None}
+    try:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            values = _parse_sensor_lesten_line(line)
+            if values:
+                parsed.update({k: values.get(k, parsed.get(k)) for k in parsed.keys()})
+                if parsed["temp"] is not None or parsed["gas_v"] is not None:
+                    break
+            if time.time() > deadline:
+                break
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+    if parsed["temp"] is None and parsed["gas_v"] is None:
+        stderr = ""
+        if proc.stderr:
+            stderr = proc.stderr.read().strip()
+        raise RuntimeError(f"sensor_lesten produced no data. stderr: {stderr}")
+    return parsed
 
 
 def _read_env_hardware() -> EnvSnapshot:
@@ -48,14 +127,16 @@ def _read_env_hardware() -> EnvSnapshot:
       که یک snapshot JSON برگرداند.
     """
     now_iso = datetime.now(timezone.utc).isoformat()
-    # مقدار None یعنی داده موجود نیست / هنوز سنسور وصل نشده.
+    readings = _read_sensor_lesten_subprocess()
+    gas_dv = readings.get("gas_dv")
+    gas_high = bool(gas_dv is not None and gas_dv > 0.0)
     return EnvSnapshot(
         ts_iso=now_iso,
-        temp=None,
-        hum=None,
-        gas_v=None,
-        gas_dv=None,
-        gas_high=False,
+        temp=readings.get("temp"),
+        hum=readings.get("hum"),
+        gas_v=readings.get("gas_v"),
+        gas_dv=gas_dv,
+        gas_high=gas_high,
     )
 
 
