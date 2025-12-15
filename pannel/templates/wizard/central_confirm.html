@@ -1,36 +1,18 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa">
 <head>
   <meta charset="UTF-8" />
   <title>تایید تنظیمات مرکزی</title>
-  <style>
-    :root { --bg:#f8fafc; --card:#ffffff; --border:#e2e8f0; --text:#0f172a; --muted:#475569; --primary:#2563eb; }
-    body { margin:0; font-family:"IRANSans","Segoe UI",Tahoma,sans-serif; background:var(--bg); color:var(--text); }
-    .wizard-page { max-width:720px; margin:40px auto; padding:0 16px; }
-    .wizard-card { background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:0 10px 30px rgba(15,23,42,0.08); padding:20px; }
-    .wizard-title { font-size:20px; font-weight:700; margin-bottom:10px; }
-    .wizard-text { color:var(--muted); margin-bottom:16px; }
-    .summary { border:1px solid var(--border); border-radius:12px; padding:12px; background:#f8fafc; }
-    .summary p { margin:6px 0; color:var(--muted); }
-    .wizard-btn { background:var(--primary); color:#fff; padding:10px 18px; border:none; border-radius:10px; font-weight:700; cursor:pointer; }
-  </style>
 </head>
 <body>
-  <div class="wizard-page">
-    <div class="wizard-card">
-      <div class="wizard-title">تایید نهایی تنظیمات مرکزی</div>
-      <div class="wizard-text">اطلاعات زیر ذخیره می‌شود. در صورت صحیح بودن، عملیات ذخیره و ریبوت را تایید کنید.</div>
-      <div class="summary">
-        <p>نام مجموعه: {{ state.cluster_name }}</p>
-        <p>هات‌اسپات: {{ state.hotspot_ssid }}</p>
-        <p>سرور: {{ state.server_host }} | سوکت: {{ state.server_socket_port }} | HTTP: {{ state.server_http_port }}</p>
-        <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
-        <p>اتصال آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
-      </div>
-      <form method="post" style="margin-top:14px;">
-        <button class="wizard-btn" type="submit">ذخیره و ریبوت</button>
-      </form>
-    </div>
-  </div>
+  <h1>تایید نهایی</h1>
+  <p>نام مجموعه: {{ state.cluster_name }}</p>
+  <p>هات‌اسپات: {{ state.hotspot_ssid }}</p>
+  <p>سرور: {{ state.server_host }} | سوکت: {{ state.server_socket_port }} | HTTP: {{ state.server_http_port }}</p>
+  <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
+  <p>اتصال آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
+  <form method="post">
+    <button type="submit">ذخیره و ریبوت</button>
+  </form>
 </body>
 </html>
