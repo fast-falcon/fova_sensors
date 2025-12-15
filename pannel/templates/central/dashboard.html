@@ -270,6 +270,11 @@
 
   fetchDashboard();
   setInterval(fetchDashboard, 10000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      fetchDashboard();
+    }
+  });
 </script>
 {% endblock %}
 
