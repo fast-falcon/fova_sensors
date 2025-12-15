@@ -99,7 +99,14 @@ def _normalize_health(h: Optional["HealthStatus"]) -> Optional[Dict[str, Any]]:
         return None
 
     def _clean(value: float) -> Optional[float]:
-        return value if value is not None and value >= 0 else None
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return None
+        if v < 0:
+            return None
+        # clamp to avoid crazy spikes
+        return max(0.0, min(v, 100.0))
 
     return {
         "cpu_percent": _clean(getattr(h, "cpu_percent", None)),

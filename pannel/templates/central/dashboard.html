@@ -154,10 +154,10 @@
     const env = data.env || {};
     const health = data.health || {};
     setText('central-last-ts', env.ts || 'نامشخص');
-    setText('central-temp', env.temp ?? '-');
-    setText('central-hum', env.hum ?? '-');
-    setText('central-gas-v', env.gas_v ?? '-');
-    setText('central-gas-dv', env.gas_dv ?? '-');
+    setText('central-temp', formatValue(env.temp));
+    setText('central-hum', formatValue(env.hum));
+    setText('central-gas-v', formatValue(env.gas_v));
+    setText('central-gas-dv', formatValue(env.gas_dv));
     const gasHigh = env.gas_high ? '<span class="badge alert">HIGH</span>' : '';
     setHtml('central-gas-high', gasHigh);
 
@@ -183,6 +183,13 @@
     }
   }
 
+  function safeVal(value) {
+    if (value === null || value === undefined) {
+      return '-';
+    }
+    return value;
+  }
+
   function renderSensors(sensors) {
     const body = document.getElementById('sensors-body');
     if (!body || !Array.isArray(sensors)) {
@@ -202,9 +209,9 @@
           <td>${s.sensor_id || '-'}</td>
           <td>${s.ip || '-'}</td>
           <td>${s.last_seen || '-'}</td>
-          <td>${env.temp ?? '-'}</td>
-          <td>${env.hum ?? '-'}</td>
-          <td>${env.gas_v ?? '-'}</td>
+          <td>${safeVal(env.temp)}</td>
+          <td>${safeVal(env.hum)}</td>
+          <td>${safeVal(env.gas_v)}</td>
           <td>${stateBadge}</td>
           <td>${link}</td>
         </tr>`;
