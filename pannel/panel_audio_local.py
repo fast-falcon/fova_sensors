@@ -234,6 +234,13 @@ def _make_small_wav(path_in: str, path_out: str) -> None:
 
 
 def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
+    """
+    اجرای ضبط tinycap با قطع/وصل خودکار (بدون نیاز به ورودی کاربر).
+
+    الهام‌گرفته از الگوی record.py: پروسس را با timeout کنترل می‌کنیم و در صورت گیرکردن
+    به‌صورت تهاجمی kill می‌زنیم تا حلقه بتواند دوباره شروع کند.
+    """
+
     ensure_dirs()
     su_env_path = _which_su_env()
 
@@ -250,12 +257,13 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         "16",
         "-c",
         str(_NATIVE_CHANNELS),
-        "-t",
-        str(int(duration_sec)),
     ]
+
+    # اگر tinycap خودش duration را رعایت نکرد، ما timeout می‌گذاریم
+    timeout_sec = max(1.0, float(duration_sec)) + 1.0
     cmd = [su_env_path] + base_cmd if su_env_path else base_cmd
 
-    print("[panel_audio_local] starting tinycap:", " ".join(cmd))
+    print("[panel_audio_local] starting tinycap:", " ".join(cmd), f"(timeout={timeout_sec}s)")
     try:
         proc = subprocess.Popen(
             cmd,
@@ -271,36 +279,34 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         print("[panel_audio_local] error starting tinycap:", e)
         return False
 
-    started = time.time()
     try:
-        while time.time() - started < duration_sec and not _STOP_FLAG:
-            line = proc.stdout.readline() if proc.stdout else None
-            if line:
-                print(line, end="")
-            if proc.poll() is not None:
-                break
-            time.sleep(0.05)
+        # خروجی tinycap را می‌خوانیم ولی مهم‌تر اینکه timeout داشته باشیم
+        try:
+            proc.wait(timeout=timeout_sec)
+        except subprocess.TimeoutExpired:
+            print("[panel_audio_local] tinycap timeout → terminating…")
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                print("[panel_audio_local] tinycap still alive → killing…")
+                proc.kill()
+        # اگر stop flag در میانه set شد، باز هم پروسس را می‌بندیم
+        if _STOP_FLAG and proc.poll() is None:
+            proc.terminate()
     finally:
         try:
-            os.kill(proc.pid, signal.SIGTERM)
+            # خواندن باقیمانده stdout برای لاگ
+            if proc.stdout:
+                for line in proc.stdout.readlines():
+                    if line:
+                        print(line, end="")
         except Exception:
             pass
-        try:
-            proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            print("[panel_audio_local] tinycap did not exit on SIGTERM, sending SIGKILL...")
-            try:
-                os.kill(proc.pid, signal.SIGKILL)
-            except Exception:
-                pass
-            try:
-                proc.wait(timeout=3)
-            except Exception:
-                pass
 
     rc = proc.returncode
     print(
-        f"[panel_audio_local] tinycap segment finished (duration target={duration_sec}s, returncode={rc})"
+        f"[panel_audio_local] tinycap segment finished (target={duration_sec}s, returncode={rc})"
     )
     return True
 
