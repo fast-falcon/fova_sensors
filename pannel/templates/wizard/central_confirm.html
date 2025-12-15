@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>تایید تنظیمات مرکزی</title>
+</head>
+<body>
+  <h1>تایید نهایی</h1>
+  <p>نام مجموعه: {{ state.cluster_name }}</p>
+  <p>هات‌اسپات: {{ state.hotspot_ssid }}</p>
+  <p>سرور: {{ state.server_host }} | سوکت: {{ state.server_socket_port }} | HTTP: {{ state.server_http_port }}</p>
+  <form method="post">
+    <button type="submit">ذخیره و ریبوت</button>
+  </form>
+</body>
+</html>
