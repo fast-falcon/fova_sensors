@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>پیکربندی سنسور - گام ۱</title>
+</head>
+<body>
+  <h1>گام ۱: تنظیمات سنسور</h1>
+  {% if errors %}
+    <ul style="color:red">
+      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+  <form method="post">
+    <div>
+      <label>نام سنسور:</label>
+      <input type="text" name="sensor_name" value="{{ sensor_name }}" required />
+    </div>
+    <div>
+      <label>SSID وای‌فای مرکزی:</label>
+      <input type="text" name="wifi_ssid" value="{{ wifi_ssid }}" required />
+    </div>
+    <div>
+      <label>رمز وای‌فای مرکزی:</label>
+      <input type="password" name="wifi_password" value="{{ wifi_password }}" required />
+    </div>
+    <div>
+      <label>آدرس مرکزی:</label>
+      <input type="text" name="central_host" value="{{ central_host }}" required />
+    </div>
+    <div>
+      <label>پورت HTTP مرکزی:</label>
+      <input type="number" name="central_http_port" value="{{ central_http_port }}" required />
+    </div>
+    <div>
+      <label>حالت آنلاین:</label>
+      <input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %} />
+      <span>در صورت غیرفعال کردن، باکس در حالت محلی بدون uplink کار می‌کند.</span>
+    </div>
+    <button type="submit">تایید و ادامه</button>
+  </form>
+</body>
+</html>

@@ -35,6 +35,12 @@ def _normalize_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         cfg["central"] = None
     if "sensor" not in cfg:
         cfg["sensor"] = None
+    if cfg.get("sensor") is None:
+        cfg["sensor"] = {}
+    sensor_cfg = cfg.get("sensor")
+    if isinstance(sensor_cfg, dict) and "online_enabled" not in sensor_cfg:
+        sensor_cfg["online_enabled"] = True
+        cfg["sensor"] = sensor_cfg
     return cfg
 
 
