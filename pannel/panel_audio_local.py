@@ -9,14 +9,12 @@
   - ارائه‌ی متد get_last_audio_segment برای خلاصه‌سازی به سمت مرکزی/سرور
 """
 
-import audioop
 import os
 import signal
 import sqlite3
 import subprocess
 import threading
 import time
-import wave
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -24,38 +22,31 @@ from panel_db import store_audio_segment
 from panel_paths import AUDIO_ROOT, DB_PATH, ensure_dirs
 
 
+# ساختار ضبط صدا طبق base_record.py که به صورت دستی تست شده است.
+import base_record as _br
+
+
 _SEGMENT_SECONDS_DEFAULT = 30
 _AUDIO_THREAD: Optional[threading.Thread] = None
 _STOP_FLAG = False
 
 # ---------- تنظیمات کارت و فایل ----------
-_CARD = "0"
-_DEVICE = "0"
+_CARD = _br.CARD
+_DEVICE = _br.DEVICE
 
-_RAW_FILENAME = "usb2_raw.wav"
-_FINAL_FILENAME = "usb2.wav"
+_RAW_FILENAME = _br.RAW_FILENAME
+_FINAL_FILENAME = _br.FINAL_FILENAME
 
-_NATIVE_RATE = 48000
-_NATIVE_CHANNELS = 2
-_SAMPLE_WIDTH = 2
+_NATIVE_RATE = _br.NATIVE_RATE
+_NATIVE_CHANNELS = _br.NATIVE_CHANNELS
+_SAMPLE_WIDTH = _br.SAMPLE_WIDTH
 
-_TARGET_RATE = 16000
-_TARGET_CHANNELS = 1
+_TARGET_RATE = _br.TARGET_RATE
+_TARGET_CHANNELS = _br.TARGET_CHANNELS
 
-_HIGHPASS_CUTOFF_HZ = 100.0
-_SILENCE_RMS_THRESHOLD = 200
-_SILENCE_WINDOW_MS = 10
-
-
-def _which_su_env() -> Optional[str]:
-    try:
-        res = subprocess.run(["which", "su_env"], capture_output=True, text=True, timeout=1)
-        if res.returncode == 0:
-            p = res.stdout.strip()
-            return p or None
-    except Exception:
-        pass
-    return None
+_HIGHPASS_CUTOFF_HZ = _br.HIGHPASS_CUTOFF_HZ
+_SILENCE_RMS_THRESHOLD = _br.SILENCE_RMS_THRESHOLD
+_SILENCE_WINDOW_MS = _br.SILENCE_WINDOW_MS
 
 
 def _configure_mixer():
@@ -63,187 +54,11 @@ def _configure_mixer():
     تنظیم خودکار میکسر کارت 0 برای tinycap.
     """
 
-    def run_mix(args: List[str]):
-        cmd = ["su_env", "tinymix", "-D", _CARD] + args
-        print("[panel_audio_local]", " ".join(cmd))
-        try:
-            subprocess.run(
-                cmd,
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-        except Exception as e:
-            print("[panel_audio_local] mix error:", e)
-
-    run_mix(["0", "63"])
-    run_mix(["2", "1"])
-    run_mix(["29", "2"])
-    print("[panel_audio_local] mixer configured for capture on card 0")
-
-
-def _fix_wav_header(path: str, channels: int, rate: int, sample_width: int):
-    if not os.path.exists(path):
-        print(f"[panel_audio_local] raw file missing, skip header fix: {path}")
-        return
-
-    with open(path, "rb") as f:
-        data = f.read()
-
-    if len(data) <= 44:
-        print(f"[panel_audio_local] raw too small ({len(data)} bytes), skip header fix")
-        return
-
-    raw_pcm = data[44:]
-    tmp_path = path + ".fixed"
-
-    print(
-        f"[panel_audio_local] fixing WAV header for {path} (len(raw)={len(raw_pcm)} bytes)"
-    )
-    with wave.open(tmp_path, "wb") as w:
-        w.setnchannels(channels)
-        w.setsampwidth(sample_width)
-        w.setframerate(rate)
-        w.writeframes(raw_pcm)
-
-    os.replace(tmp_path, path)
-    print(f"[panel_audio_local] header fixed → {path}")
-
-
-def _highpass_filter(pcm: bytes, sampwidth: int, rate: int, cutoff_hz: float) -> bytes:
-    if sampwidth != 2:
-        return pcm
-
-    import math
-    import array
-
-    length = len(pcm)
-    num_samples = length // 2
-    x = array.array("h")
-    x.frombytes(pcm)
-
-    dt = 1.0 / float(rate)
-    rc = 1.0 / (2.0 * math.pi * float(cutoff_hz))
-    alpha = dt / (rc + dt)
-
-    low_prev = 0.0
-    y = array.array("h")
-
-    for n in range(num_samples):
-        xn = float(x[n])
-        low = low_prev + alpha * (xn - low_prev)
-        high = xn - low
-        if high > 32767:
-            high = 32767
-        elif high < -32768:
-            high = -32768
-        y.append(int(high))
-        low_prev = low
-
-    return y.tobytes()
-
-
-def _gate_true_silence(
-    pcm: bytes,
-    sampwidth: int,
-    rate: int,
-    rms_threshold: int,
-    window_ms: int,
-) -> bytes:
-    if sampwidth != 2:
-        return pcm
-
-    frame_bytes = sampwidth
-    window_samples = int(rate * window_ms / 1000.0)
-    if window_samples <= 0:
-        return pcm
-
-    window_bytes = window_samples * frame_bytes
-    length = len(pcm)
-    out = bytearray(pcm)
-
-    for start in range(0, length, window_bytes):
-        end = min(start + window_bytes, length)
-        chunk = pcm[start:end]
-        if not chunk:
-            break
-        rms = audioop.rms(chunk, sampwidth)
-        if rms < rms_threshold:
-            out[start:end] = b"\x00" * (end - start)
-
-    return bytes(out)
-
-
-def _make_small_wav(path_in: str, path_out: str) -> None:
-    if not os.path.exists(path_in):
-        print(f"[panel_audio_local] File {path_in} does not exist, skipping small wav")
-        return
-
-    size = os.path.getsize(path_in)
-    if size <= 44:
-        print(f"[panel_audio_local] File {path_in} is empty ({size} bytes), skipping small wav")
-        return
-
-    print(f"[panel_audio_local] preparing to downsample/compress (size={size} bytes)")
-
-    with wave.open(path_in, "rb") as r:
-        nch = r.getnchannels()
-        sw = r.getsampwidth()
-        fr = r.getframerate()
-        nframes = r.getnframes()
-        frames = r.readframes(nframes)
-
-    print(
-        f"[panel_audio_local] compressing {path_in}: {nch}ch,{fr}Hz -> {_TARGET_CHANNELS}ch,{_TARGET_RATE}Hz"
-    )
-
-    if nch == 2 and _TARGET_CHANNELS == 1:
-        frames_mono = audioop.tomono(frames, sw, 0.5, 0.5)
-        nch_in = 1
-    else:
-        frames_mono = frames
-        nch_in = nch
-
-    converted, _ = audioop.ratecv(
-        frames_mono,
-        sw,
-        nch_in,
-        fr,
-        _TARGET_RATE,
-        None,
-    )
-
-    hp = _highpass_filter(
-        converted,
-        sampwidth=sw,
-        rate=_TARGET_RATE,
-        cutoff_hz=_HIGHPASS_CUTOFF_HZ,
-    )
-
-    gated = _gate_true_silence(
-        hp,
-        sampwidth=sw,
-        rate=_TARGET_RATE,
-        rms_threshold=_SILENCE_RMS_THRESHOLD,
-        window_ms=_SILENCE_WINDOW_MS,
-    )
-
-    with wave.open(path_out, "wb") as w:
-        w.setnchannels(_TARGET_CHANNELS)
-        w.setsampwidth(sw)
-        w.setframerate(_TARGET_RATE)
-        w.writeframes(gated)
-
-    print(
-        f"[panel_audio_local] Final wav written to {path_out} (16k/mono + high-pass + soft gate)"
-    )
-
     try:
-        out_size = os.path.getsize(path_out)
-        print(f"[panel_audio_local] compressed file size={out_size} bytes")
-    except FileNotFoundError:
-        pass
+        _br.configure_mixer()
+        print("[panel_audio_local] mixer configured (base_record)")
+    except Exception as e:
+        print("[panel_audio_local] mix config error:", e)
 
 
 def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
@@ -255,9 +70,9 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
     """
 
     ensure_dirs()
-    su_env_path = _which_su_env()
 
-    base_cmd = [
+    cmd = [
+        "su_env",
         "tinycap",
         filepath,
         "-D",
@@ -274,9 +89,8 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
 
     # اگر tinycap خودش duration را رعایت نکرد، ما timeout می‌گذاریم
     timeout_sec = max(1.0, float(duration_sec)) + 1.0
-    cmd = [su_env_path] + base_cmd if su_env_path else base_cmd
 
-    print("[panel_audio_local] starting tinycap:", " ".join(cmd), f"(timeout={timeout_sec}s)")
+    print("[panel_audio_local] starting tinycap (base_record style):", " ".join(cmd), f"(timeout={timeout_sec}s)")
     try:
         proc = subprocess.Popen(
             cmd,
@@ -356,8 +170,13 @@ def _process_audio(raw_path: str, final_path: str) -> bool:
         return False
 
     print(f"[panel_audio_local] raw size before header fix: {raw_size} bytes")
-    _fix_wav_header(raw_path, _NATIVE_CHANNELS, _NATIVE_RATE, _SAMPLE_WIDTH)
-    _make_small_wav(raw_path, final_path)
+    _br.fix_wav_header(raw_path, _NATIVE_CHANNELS, _NATIVE_RATE, _SAMPLE_WIDTH)
+    _br.make_small_wav(
+        raw_path,
+        final_path,
+        target_rate=_TARGET_RATE,
+        target_channels=_TARGET_CHANNELS,
+    )
     try:
         os.remove(raw_path)
         print(f"[panel_audio_local] removed raw file {raw_path}")
