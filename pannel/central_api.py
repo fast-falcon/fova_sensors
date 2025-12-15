@@ -28,6 +28,8 @@ from flask import (
     request,
     render_template,
     Response,
+    abort,
+    send_file,
 )
 
 from panel_paths import BASE_DIR, CRYPTO_PRIV_KEY, DEFAULT_HTTP_PORT, SENSOR_OFFLINE_SECONDS
@@ -241,6 +243,45 @@ def api_dashboard_state():
     central_status = _build_central_status()
     sensor_cards = _build_sensor_cards()
     return jsonify({"central": central_status, "sensors": sensor_cards})
+
+
+@app.route("/api/audio_segments", methods=["GET"])
+def api_audio_segments():
+    init_db()
+    ident = _get_central_identity()
+    sensor_id = request.args.get("sensor_id") or ident["box_id"]
+    try:
+        limit = int(request.args.get("limit", "50"))
+    except ValueError:
+        limit = 50
+    label_filter = request.args.get("label")
+
+    segments = list_audio_segments(sensor_id, limit=limit)
+    if label_filter:
+        segments = [s for s in segments if s.get("label") == label_filter]
+
+    return jsonify({"sensor_id": sensor_id, "segments": segments})
+
+
+@app.route("/api/audio_file/<int:seg_id>", methods=["GET"])
+def api_audio_file(seg_id: int):
+    if not os.path.exists(DB_PATH):
+        abort(404)
+
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT filepath FROM audio_segments WHERE id = ?",
+        (seg_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        abort(404)
+    filepath = row[0]
+    if not filepath or not os.path.exists(filepath):
+        abort(404)
+    return send_file(filepath, mimetype="audio/wav", as_attachment=False)
 
 
 # ---------- API for sensors ----------

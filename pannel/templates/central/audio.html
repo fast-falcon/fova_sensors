@@ -4,24 +4,29 @@
 {% block content %}
 <div class="card">
   <h3>صداهای ضبط شده روی باکس مرکزی</h3>
-  {% if central_segments %}
-    <table>
+  <div id="central-audio-empty" style="display: {% if central_segments %}none{% else %}block{% endif %};">
+    <p>هنوز هیچ صدایی روی باکس مرکزی ثبت نشده است.</p>
+  </div>
+  <table id="central-audio-table" style="display: {% if central_segments %}table{% else %}none{% endif %};">
+    <thead>
       <tr>
         <th>زمان</th>
         <th>مدت (ثانیه)</th>
         <th>برچسب</th>
+        <th>پخش</th>
       </tr>
+    </thead>
+    <tbody id="central-audio-body">
       {% for s in central_segments %}
         <tr>
           <td>{{ s.ts }}</td>
           <td>{{ "%.1f"|format(s.duration_sec) }}</td>
           <td>{{ s.label if s.label else "-" }}</td>
+          <td><audio controls preload="none" src="/api/audio_file/{{ s.id }}"></audio></td>
         </tr>
       {% endfor %}
-    </table>
-  {% else %}
-    <p>هنوز هیچ صدایی روی باکس مرکزی ثبت نشده است.</p>
-  {% endif %}
+    </tbody>
+  </table>
 </div>
 
 <div class="card">
@@ -53,5 +58,70 @@
     <p>سنسوری ثبت نشده است.</p>
   {% endif %}
 </div>
+<script>
+  (function () {
+    var centralId = "{{ ident.box_id }}";
+    var emptyEl = document.getElementById('central-audio-empty');
+    var tableEl = document.getElementById('central-audio-table');
+    var bodyEl = document.getElementById('central-audio-body');
+
+    function setVisibility(hasRows) {
+      if (!emptyEl || !tableEl) {
+        return;
+      }
+      emptyEl.style.display = hasRows ? 'none' : 'block';
+      tableEl.style.display = hasRows ? 'table' : 'none';
+    }
+
+    function renderRows(segments) {
+      if (!bodyEl) {
+        return;
+      }
+      if (!segments || !segments.length) {
+        bodyEl.innerHTML = '';
+        setVisibility(false);
+        return;
+      }
+      var rows = segments.map(function (s) {
+        var duration = typeof s.duration_sec === 'number' ? s.duration_sec.toFixed(1) : '-';
+        var label = s.label || '-';
+        var ts = s.ts || '-';
+        var audioSrc = '/api/audio_file/' + s.id;
+        return (
+          '<tr>' +
+          '<td>' + ts + '</td>' +
+          '<td>' + duration + '</td>' +
+          '<td>' + label + '</td>' +
+          '<td><audio controls preload="none" src="' + audioSrc + '"></audio></td>' +
+          '</tr>'
+        );
+      });
+      bodyEl.innerHTML = rows.join('');
+      setVisibility(true);
+    }
+
+    function fetchAudio() {
+      if (!window.fetch) {
+        return;
+      }
+      fetch('/api/audio_segments?limit=100&sensor_id=' + encodeURIComponent(centralId), { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (payload) {
+          renderRows(payload.segments || []);
+        })
+        .catch(function (err) {
+          console.warn('audio fetch error', err);
+        });
+    }
+
+    fetchAudio();
+    setInterval(fetchAudio, 10000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        fetchAudio();
+      }
+    });
+  })();
+</script>
 {% endblock %}
 
