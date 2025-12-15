@@ -3,32 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <title>تایید تنظیمات مرکزی</title>
-  <style>
-    body { margin:0; font-family:'Segoe UI', Tahoma, sans-serif; background:#f8fafc; color:#0f172a; direction:rtl; }
-    .container { max-width:520px; margin:40px auto; padding:20px; }
-    .card { background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.06); }
-    h1 { margin:0 0 12px 0; font-size:22px; }
-    .summary { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px; margin-top:12px; }
-    .summary p { margin:6px 0; color:#475569; }
-    button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:#10b981; color:#0f172a; font-weight:700; cursor:pointer; }
-    button:hover { background:#0ea471; }
-  </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>تایید نهایی تنظیمات</h1>
-      <div class="summary">
-        <p>نام مجموعه: {{ state.cluster_name }}</p>
-        <p>هات‌اسپات: {{ state.hotspot_ssid }}</p>
-        <p>سرور: {{ state.server_host }} | سوکت: {{ state.server_socket_port }} | HTTP: {{ state.server_http_port }}</p>
-        <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
-        <p>اتصال آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
-      </div>
-      <form method="post">
-        <button type="submit">ذخیره و ریبوت</button>
-      </form>
-    </div>
-  </div>
+  <h1>تایید نهایی</h1>
+  <p>نام مجموعه: {{ state.cluster_name }}</p>
+  <p>هات‌اسپات: {{ state.hotspot_ssid }}</p>
+  <p>سرور: {{ state.server_host }} | سوکت: {{ state.server_socket_port }} | HTTP: {{ state.server_http_port }}</p>
+  <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
+  <p>اتصال آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
+  <form method="post">
+    <button type="submit">ذخیره و ریبوت</button>
+  </form>
 </body>
 </html>

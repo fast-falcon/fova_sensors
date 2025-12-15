@@ -38,7 +38,7 @@ from panel_crypto import ensure_box_keypair, load_box_public_key, decrypt_with_p
 from panel_sensors_local import get_latest_env
 from panel_audio_local import get_last_audio_segment, list_audio_segments
 from panel_health import get_health_status
-from panel_db import init_db, DB_PATH, get_latest_sensor_sample, get_recent_sensor_samples
+from panel_db import init_db, DB_PATH, get_latest_sensor_sample
 from panel_net_common import parse_basic_auth_header
 from central_sensors_link import (
     update_sensor_state_from_payload,
@@ -103,30 +103,6 @@ def _merge_env_with_db(env: Optional[Dict[str, Any]], sensor_id: str) -> Dict[st
         "gas_high": env.get("gas_high") if env.get("gas_high") is not None else data.get("gas_high", False),
     }
     return merged
-
-
-def _build_env_history(sensor_id: str, limit: int = 12) -> Dict[str, Any]:
-    """آخرین نمونه‌های ذخیره‌شده برای نمودارها را استخراج می‌کند."""
-
-    samples = get_recent_sensor_samples(sensor_id, limit=limit)
-    history = {"ts": [], "temp": [], "hum": [], "gas_v": [], "gas_dv": []}
-
-    def _clean(value: Any) -> Any:
-        try:
-            return float(value)
-        except Exception:
-            return None
-
-    for item in samples:
-        ts_iso = item.get("ts")
-        data = item.get("data") or {}
-        history["ts"].append(ts_iso)
-        history["temp"].append(_clean(data.get("temp")))
-        history["hum"].append(_clean(data.get("hum")))
-        history["gas_v"].append(_clean(data.get("gas_v")))
-        history["gas_dv"].append(_clean(data.get("gas_dv")))
-
-    return history
 
 
 def _compose_audio_summary(
@@ -214,7 +190,6 @@ def _build_central_status() -> Dict[str, Any]:
     return {
         "ident": ident,
         "env": env,
-        "env_history": _build_env_history(ident["box_id"]),
         "health": health,
         "audio_summary": audio_summary,
     }
@@ -236,7 +211,6 @@ def _build_sensor_cards() -> List[Dict[str, Any]]:
                 "last_seen": st.last_seen,
                 "env": env,
                 "audio_summary": audio_summary,
-                "env_history": _build_env_history(st.sensor_id),
                 "health": _normalize_health(getattr(st, "health", None)),
                 "state": state_label,
             }
