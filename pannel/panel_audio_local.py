@@ -75,6 +75,8 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         "su_env",
         "tinycap",
         filepath,
+        "-T",
+        str(duration_sec),
         "-D",
         _CARD,
         "-d",
@@ -87,8 +89,8 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         str(_NATIVE_CHANNELS),
     ]
 
-    # اگر tinycap خودش duration را رعایت نکرد، ما timeout می‌گذاریم
-    timeout_sec = max(1.0, float(duration_sec)) + 1.0
+    # tinycap با -T خودش خارج می‌شود؛ timeout کوتاه برای گیرکردن غیرعادی می‌گذاریم
+    timeout_sec = max(1.0, float(duration_sec)) + 3.0
 
     print("[panel_audio_local] starting tinycap (base_record style):", " ".join(cmd), f"(timeout={timeout_sec}s)")
     try:
@@ -109,15 +111,16 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
     try:
         # خروجی tinycap را می‌خوانیم ولی مهم‌تر اینکه timeout داشته باشیم
         try:
-            proc.wait(timeout=timeout_sec)
+            stdout, _ = proc.communicate(timeout=timeout_sec)
         except subprocess.TimeoutExpired:
             print("[panel_audio_local] tinycap timeout → sending SIGTERM…")
             proc.send_signal(signal.SIGTERM)
             try:
-                proc.wait(timeout=3)
+                stdout, _ = proc.communicate(timeout=3)
             except subprocess.TimeoutExpired:
                 print("[panel_audio_local] tinycap still alive → sending SIGKILL…")
                 proc.kill()
+                stdout, _ = proc.communicate()
         # اگر stop flag در میانه set شد، باز هم پروسس را می‌بندیم (با الگوی manual test)
         if _STOP_FLAG and proc.poll() is None:
             proc.send_signal(signal.SIGTERM)
@@ -142,9 +145,16 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         f"[panel_audio_local] tinycap segment finished (target={duration_sec}s, returncode={rc}, size={size_bytes} bytes)"
     )
 
-    if size_bytes <= 44:
+    if os.path.exists(filepath):
+        try:
+            _br.fix_wav_header(filepath, _NATIVE_CHANNELS, _NATIVE_RATE, _SAMPLE_WIDTH)
+        except Exception as e:
+            print("[panel_audio_local] fix_wav_header error after tinycap:", e)
+
+    post_fix_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+    if post_fix_size <= 44:
         print(
-            f"[panel_audio_local] tinycap produced empty/invalid WAV (size={size_bytes}); removing and retrying later"
+            f"[panel_audio_local] tinycap produced empty/invalid WAV (post-fix size={post_fix_size}); removing and retrying later"
         )
         try:
             os.remove(filepath)
