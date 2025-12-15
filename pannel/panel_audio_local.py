@@ -185,6 +185,8 @@ def _make_small_wav(path_in: str, path_out: str) -> None:
         print(f"[panel_audio_local] File {path_in} is empty ({size} bytes), skipping small wav")
         return
 
+    print(f"[panel_audio_local] preparing to downsample/compress (size={size} bytes)")
+
     with wave.open(path_in, "rb") as r:
         nch = r.getnchannels()
         sw = r.getsampwidth()
@@ -236,6 +238,12 @@ def _make_small_wav(path_in: str, path_out: str) -> None:
     print(
         f"[panel_audio_local] Final wav written to {path_out} (16k/mono + high-pass + soft gate)"
     )
+
+    try:
+        out_size = os.path.getsize(path_out)
+        print(f"[panel_audio_local] compressed file size={out_size} bytes")
+    except FileNotFoundError:
+        pass
 
 
 def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
@@ -289,16 +297,21 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         try:
             proc.wait(timeout=timeout_sec)
         except subprocess.TimeoutExpired:
-            print("[panel_audio_local] tinycap timeout → terminating…")
-            proc.terminate()
+            print("[panel_audio_local] tinycap timeout → sending SIGTERM…")
+            proc.send_signal(signal.SIGTERM)
             try:
-                proc.wait(timeout=2)
+                proc.wait(timeout=3)
             except subprocess.TimeoutExpired:
-                print("[panel_audio_local] tinycap still alive → killing…")
+                print("[panel_audio_local] tinycap still alive → sending SIGKILL…")
                 proc.kill()
-        # اگر stop flag در میانه set شد، باز هم پروسس را می‌بندیم
+        # اگر stop flag در میانه set شد، باز هم پروسس را می‌بندیم (با الگوی manual test)
         if _STOP_FLAG and proc.poll() is None:
-            proc.terminate()
+            proc.send_signal(signal.SIGTERM)
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                print("[panel_audio_local] tinycap still alive after STOP_FLAG → SIGKILL")
+                proc.kill()
     finally:
         try:
             # خواندن باقیمانده stdout برای لاگ
@@ -310,9 +323,21 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
             pass
 
     rc = proc.returncode
+    size_bytes = os.path.getsize(filepath) if os.path.exists(filepath) else 0
     print(
-        f"[panel_audio_local] tinycap segment finished (target={duration_sec}s, returncode={rc})"
+        f"[panel_audio_local] tinycap segment finished (target={duration_sec}s, returncode={rc}, size={size_bytes} bytes)"
     )
+
+    if size_bytes <= 44:
+        print(
+            f"[panel_audio_local] tinycap produced empty/invalid WAV (size={size_bytes}); removing and retrying later"
+        )
+        try:
+            os.remove(filepath)
+        except FileNotFoundError:
+            pass
+        return False
+
     return True
 
 
@@ -330,6 +355,7 @@ def _process_audio(raw_path: str, final_path: str) -> bool:
             pass
         return False
 
+    print(f"[panel_audio_local] raw size before header fix: {raw_size} bytes")
     _fix_wav_header(raw_path, _NATIVE_CHANNELS, _NATIVE_RATE, _SAMPLE_WIDTH)
     _make_small_wav(raw_path, final_path)
     try:
@@ -367,10 +393,6 @@ def _audio_loop(sensor_id: str, segment_seconds: int):
             time.sleep(2.0)
             continue
 
-        if _STOP_FLAG:
-            print("[panel_audio_local] STOP_FLAG set after capture, skipping processing")
-            break
-
         processed_ok = _process_audio(raw_path, final_path)
         if not processed_ok:
             print("[panel_audio_local] post-processing failed; skipping metadata save")
@@ -387,6 +409,10 @@ def _audio_loop(sensor_id: str, segment_seconds: int):
             )
         except Exception as e:
             print("[panel_audio_local] store_audio_segment error:", e)
+
+        if _STOP_FLAG:
+            print("[panel_audio_local] STOP_FLAG set; processed last segment before exit")
+            break
 
     print("[panel_audio_local] audio loop stopping; STOP_FLAG set")
     _AUDIO_THREAD = None
