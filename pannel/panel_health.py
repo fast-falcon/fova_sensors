@@ -10,6 +10,7 @@
 import json
 import os
 import subprocess
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -43,7 +44,33 @@ def _measure_cpu_percent() -> float:
             return float(psutil.cpu_percent(interval=0.1))
         except Exception:
             pass
-    # fallback: بدون psutil
+    # fallback: بدون psutil → /proc/stat دو نمونه
+    try:
+        def _read_cpu_times():
+            with open("/proc/stat", "r") as f:
+                first = f.readline()
+            parts = first.strip().split()
+            if len(parts) < 5 or parts[0] != "cpu":
+                raise RuntimeError("unexpected /proc/stat format")
+            values = [float(x) for x in parts[1:]]
+            idle = values[3]
+            iowait = values[4] if len(values) > 4 else 0.0
+            total = sum(values)
+            return idle + iowait, total
+
+        idle1, total1 = _read_cpu_times()
+        time.sleep(0.2)
+        idle2, total2 = _read_cpu_times()
+        diff_idle = idle2 - idle1
+        diff_total = total2 - total1
+        if diff_total <= 0:
+            return -1.0
+        usage = (1.0 - (diff_idle / diff_total)) * 100.0
+        # clamp to [0,100]
+        usage = max(0.0, min(usage, 100.0))
+        return float(usage)
+    except Exception as e:
+        print("[panel_health] cpu fallback error:", e)
     return -1.0
 
 
