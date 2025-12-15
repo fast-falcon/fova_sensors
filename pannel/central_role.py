@@ -17,7 +17,7 @@ import threading
 
 from panel_paths import ensure_dirs, DEFAULT_HTTP_PORT
 from panel_db import init_db
-from panel_config import get_config
+from panel_config import get_config, get_audio_segment_seconds
 from panel_crypto import ensure_box_keypair
 from panel_ssh import ensure_ssh_key
 from panel_config import get_box_id
@@ -64,12 +64,19 @@ def run_central():
     print("[central_role] sensor_reader for central started")
 
     # ضبط صدا روی خود باکس
-    start_audio_capture(sensor_id=central_id, segment_seconds=30)
-    print("[central_role] audio_capture for central started")
+    segment_seconds = get_audio_segment_seconds(cfg)
+    start_audio_capture(sensor_id=central_id, segment_seconds=segment_seconds)
+    print(
+        f"[central_role] audio_capture for central started (segment={segment_seconds}s)"
+    )
 
     # uplink به سرور اصلی
-    start_uplink_to_server()
-    print("[central_role] uplink to main server started")
+    central_cfg = cfg.get("central") or {}
+    if central_cfg.get("online_enabled", True):
+        start_uplink_to_server()
+        print("[central_role] uplink to main server started")
+    else:
+        print("[central_role] online mode disabled → uplink to server skipped")
 
     # در نهایت پنل مرکزی را بالا می‌آوریم
     print(f"[central_role] starting central Flask panel on port {DEFAULT_HTTP_PORT}")

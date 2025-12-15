@@ -9,6 +9,8 @@
   <p>نام مجموعه: {{ state.cluster_name }}</p>
   <p>هات‌اسپات: {{ state.hotspot_ssid }}</p>
   <p>سرور: {{ state.server_host }} | سوکت: {{ state.server_socket_port }} | HTTP: {{ state.server_http_port }}</p>
+  <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
+  <p>اتصال آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
   <form method="post">
     <button type="submit">ذخیره و ریبوت</button>
   </form>

@@ -157,6 +157,31 @@ def store_sensor_sample(sensor_id: str, ts_iso: str, env: Dict[str, Any]) -> Non
     conn.commit()
 
 
+def get_latest_sensor_sample(sensor_id: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+    """
+    آخرین نمونه‌ی ثبت‌شده برای یک سنسور را از DB برمی‌گرداند.
+
+    Returns:
+        (ts_iso, data_dict) یا None اگر چیزی ثبت نشده باشد.
+    """
+    conn = _get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT ts, data_json FROM sensor_samples WHERE sensor_id=? ORDER BY ts DESC LIMIT 1",
+        (sensor_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    ts_iso, data_json = row
+    data: Dict[str, Any] = {}
+    try:
+        data = json.loads(data_json)
+    except Exception:
+        data = {}
+    return ts_iso, data
+
+
 def store_audio_segment(
     sensor_id: str,
     ts_iso: str,

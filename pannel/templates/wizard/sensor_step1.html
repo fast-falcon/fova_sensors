@@ -33,6 +33,10 @@
       <input type="number" name="central_http_port" value="{{ central_http_port }}" required />
     </div>
     <div>
+      <label>بازه ضبط صدا (ثانیه):</label>
+      <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" min="1" required />
+    </div>
+    <div>
       <label>حالت آنلاین:</label>
       <input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %} />
       <span>در صورت غیرفعال کردن، باکس در حالت محلی بدون uplink کار می‌کند.</span>

@@ -9,6 +9,7 @@
   <p>نام سنسور: {{ state.sensor_name }}</p>
   <p>SSID وای‌فای: {{ state.wifi_ssid }}</p>
   <p>هاست مرکزی: {{ state.central_host }}:{{ state.central_http_port }}</p>
+  <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
   <p>حالت آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
   <form method="post">
     <button type="submit">ذخیره و ریبوت</button>
