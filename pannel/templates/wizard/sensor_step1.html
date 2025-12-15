@@ -3,45 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <title>پیکربندی سنسور - گام ۱</title>
+  <style>
+    body { margin:0; font-family:'Segoe UI', Tahoma, sans-serif; background:#f8fafc; color:#0f172a; direction:rtl; }
+    .container { max-width:560px; margin:40px auto; padding:20px; }
+    .card { background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.06); }
+    h1 { margin:0 0 12px 0; font-size:22px; }
+    label { display:block; font-weight:700; margin-top:12px; }
+    input[type="text"], input[type="number"], input[type="password"] { width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:10px; margin-top:6px; font-family:inherit; }
+    .inline { display:flex; align-items:center; gap:8px; margin-top:12px; }
+    button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:#3b82f6; color:#fff; font-weight:700; cursor:pointer; }
+    button:hover { background:#2563eb; }
+    .errors { background:#fef2f2; border:1px solid #fecdd3; color:#b91c1c; padding:10px; border-radius:10px; margin-top:10px; }
+    .helper { color:#475569; font-size:13px; margin-top:4px; }
+  </style>
 </head>
 <body>
-  <h1>گام ۱: تنظیمات سنسور</h1>
-  {% if errors %}
-    <ul style="color:red">
-      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
-    </ul>
-  {% endif %}
-  <form method="post">
-    <div>
-      <label>نام سنسور:</label>
-      <input type="text" name="sensor_name" value="{{ sensor_name }}" required />
+  <div class="container">
+    <div class="card">
+      <h1>گام ۱: تنظیمات سنسور</h1>
+      {% if errors %}
+        <div class="errors"><ul>{% for err in errors %}<li>{{ err }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      <form method="post">
+        <label>نام سنسور:
+          <input type="text" name="sensor_name" value="{{ sensor_name }}" required />
+        </label>
+        <label>SSID وای‌فای مرکزی:
+          <input type="text" name="wifi_ssid" value="{{ wifi_ssid }}" required />
+        </label>
+        <label>رمز وای‌فای مرکزی:
+          <input type="password" name="wifi_password" value="{{ wifi_password }}" required />
+        </label>
+        <label>آدرس مرکزی:
+          <input type="text" name="central_host" value="{{ central_host }}" required />
+        </label>
+        <label>پورت HTTP مرکزی:
+          <input type="number" name="central_http_port" value="{{ central_http_port }}" required />
+        </label>
+        <label>بازه ضبط صدا (ثانیه):
+          <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" min="1" required />
+        </label>
+        <div class="inline">
+          <input type="checkbox" id="online_enabled" name="online_enabled" {% if online_enabled %}checked{% endif %} />
+          <label for="online_enabled" style="margin:0; font-weight:600;">حالت آنلاین</label>
+        </div>
+        <div class="helper">در صورت غیرفعال، سنسور فقط به صورت محلی کار می‌کند.</div>
+        <button type="submit">تایید و ادامه</button>
+      </form>
     </div>
-    <div>
-      <label>SSID وای‌فای مرکزی:</label>
-      <input type="text" name="wifi_ssid" value="{{ wifi_ssid }}" required />
-    </div>
-    <div>
-      <label>رمز وای‌فای مرکزی:</label>
-      <input type="password" name="wifi_password" value="{{ wifi_password }}" required />
-    </div>
-    <div>
-      <label>آدرس مرکزی:</label>
-      <input type="text" name="central_host" value="{{ central_host }}" required />
-    </div>
-    <div>
-      <label>پورت HTTP مرکزی:</label>
-      <input type="number" name="central_http_port" value="{{ central_http_port }}" required />
-    </div>
-    <div>
-      <label>بازه ضبط صدا (ثانیه):</label>
-      <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" min="1" required />
-    </div>
-    <div>
-      <label>حالت آنلاین:</label>
-      <input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %} />
-      <span>در صورت غیرفعال کردن، باکس در حالت محلی بدون uplink کار می‌کند.</span>
-    </div>
-    <button type="submit">تایید و ادامه</button>
-  </form>
+  </div>
 </body>
 </html>
