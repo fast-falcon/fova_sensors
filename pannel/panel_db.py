@@ -157,6 +157,42 @@ def store_sensor_sample(sensor_id: str, ts_iso: str, env: Dict[str, Any]) -> Non
     conn.commit()
 
 
+def get_sensor_history(sensor_id: str, limit: int = 20) -> list:
+    """Return the latest sensor samples (oldest → newest) for charting.
+
+    This helper keeps the ordering stable for front-end charts and ignores
+    malformed JSON rows gracefully.
+    """
+
+    conn = _get_conn()
+    cur = conn.cursor()
+    try:
+        limit_int = int(limit)
+    except Exception:
+        limit_int = 20
+
+    if limit_int <= 0:
+        limit_int = 20
+
+    cur.execute(
+        "SELECT ts, data_json FROM sensor_samples WHERE sensor_id=? "
+        "ORDER BY ts DESC LIMIT ?",
+        (sensor_id, limit_int),
+    )
+
+    rows = cur.fetchall() or []
+    history = []
+    for row in rows:
+        try:
+            data = json.loads(row["data_json"])
+        except Exception:
+            data = {}
+        history.append({"ts": row["ts"], "data": data})
+
+    history.reverse()  # oldest → newest برای نمودارها بهتر است
+    return history
+
+
 def get_latest_sensor_sample(sensor_id: str) -> Optional[Tuple[str, Dict[str, Any]]]:
     """
     آخرین نمونه‌ی ثبت‌شده برای یک سنسور را از DB برمی‌گرداند.

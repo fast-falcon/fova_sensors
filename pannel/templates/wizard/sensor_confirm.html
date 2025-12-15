@@ -1,18 +1,31 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>تایید تنظیمات سنسور</title>
+  <style>
+    body { font-family: "IRANSans", "Vazir", "Segoe UI", sans-serif; background: linear-gradient(135deg,#0f172a,#0b1220); color:#0f172a; margin:0; padding:20px; }
+    .container { max-width: 720px; margin: 0 auto; }
+    .card { background:#f8fafc; border-radius:16px; padding:20px; box-shadow:0 12px 30px rgba(15,23,42,0.25); border:1px solid #e2e8f0; }
+    h1 { margin-top:0; color:#0ea5e9; font-size:22px; }
+    p { margin:8px 0; color:#0f172a; }
+    button { margin-top:14px; background:#0ea5e9; color:#f8fafc; border:none; padding:10px 18px; border-radius:12px; font-weight:700; cursor:pointer; }
+    button:hover { background:#0284c7; }
+  </style>
 </head>
 <body>
-  <h1>تایید</h1>
-  <p>نام سنسور: {{ state.sensor_name }}</p>
-  <p>SSID وای‌فای: {{ state.wifi_ssid }}</p>
-  <p>هاست مرکزی: {{ state.central_host }}:{{ state.central_http_port }}</p>
-  <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
-  <p>حالت آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
-  <form method="post">
-    <button type="submit">ذخیره و ریبوت</button>
-  </form>
+  <div class="container">
+    <div class="card">
+      <h1>تایید</h1>
+      <p>نام سنسور: {{ state.sensor_name }}</p>
+      <p>SSID وای‌فای: {{ state.wifi_ssid }}</p>
+      <p>هاست مرکزی: {{ state.central_host }}:{{ state.central_http_port }}</p>
+      <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
+      <p>حالت آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
+      <form method="post">
+        <button type="submit">ذخیره و ریبوت</button>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
