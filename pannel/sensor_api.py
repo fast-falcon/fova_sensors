@@ -36,7 +36,7 @@ from panel_sensors_local import get_latest_env
 from panel_health import get_health_status
 from panel_audio_local import list_audio_segments, get_last_audio_segment
 from panel_net_common import parse_basic_auth_header
-from panel_db import init_db
+from panel_db import init_db, get_sensor_history
 
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -85,6 +85,36 @@ def require_basic_auth(view_func):
         return view_func(*args, **kwargs)
 
     return wrapper
+
+
+def _build_env_history(sensor_id: str, current_env: Dict[str, Any], limit: int = 20) -> Dict[str, Any]:
+    rows = get_sensor_history(sensor_id, limit=limit)
+    points = []
+
+    for row in rows:
+        data = row.get("data") or {}
+        points.append({"ts": row.get("ts"), "data": data})
+
+    if current_env:
+        ts_val = current_env.get("ts")
+        if ts_val and (not points or points[-1].get("ts") != ts_val):
+            points.append({"ts": ts_val, "data": current_env})
+
+    labels = []
+    temp = []
+    hum = []
+    gas_v = []
+    gas_dv = []
+
+    for item in points:
+        labels.append(item.get("ts") or "-")
+        data = item.get("data") or {}
+        temp.append(data.get("temp"))
+        hum.append(data.get("hum"))
+        gas_v.append(data.get("gas_v"))
+        gas_dv.append(data.get("gas_dv"))
+
+    return {"labels": labels, "temp": temp, "hum": hum, "gas_v": gas_v, "gas_dv": gas_dv}
 
 
 def _build_status_dict() -> Dict[str, Any]:
@@ -139,6 +169,7 @@ def _build_status_dict() -> Dict[str, Any]:
         "sensor_id": ident["box_id"],
         "sensor_name": ident["sensor_name"],
         "env": env,
+        "env_history": _build_env_history(ident["box_id"], env),
         "health": health_dict,
         "audio_summary": audio_summary,
     }
