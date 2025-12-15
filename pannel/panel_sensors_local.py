@@ -127,7 +127,14 @@ def _read_env_hardware() -> EnvSnapshot:
       که یک snapshot JSON برگرداند.
     """
     now_iso = datetime.now(timezone.utc).isoformat()
-    readings = _read_sensor_lesten_subprocess()
+    try:
+        readings = _read_sensor_lesten_subprocess()
+    except FileNotFoundError as e:
+        print("[panel_sensors_local] sensor_lesten.py not found; returning empty snapshot")
+        readings = {"temp": None, "hum": None, "gas_v": None, "gas_dv": None}
+    except Exception as e:
+        print("[panel_sensors_local] read error, using empty snapshot:", e)
+        readings = {"temp": None, "hum": None, "gas_v": None, "gas_dv": None}
     gas_dv = readings.get("gas_dv")
     gas_high = bool(gas_dv is not None and gas_dv > 0.0)
     return EnvSnapshot(

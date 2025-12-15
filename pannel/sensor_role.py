@@ -17,7 +17,7 @@ import threading
 
 from panel_paths import DEFAULT_HTTP_PORT, ensure_dirs
 from panel_db import init_db
-from panel_config import get_box_id, get_config, get_sensor_config
+from panel_config import get_box_id, get_config, get_sensor_config, get_audio_segment_seconds
 from panel_crypto import ensure_box_keypair
 from panel_ssh import ensure_ssh_key
 
@@ -67,8 +67,11 @@ def run_sensor():
     print("[sensor_role] sensor_reader started")
 
     # شروع ضبط صدا (segmentهای ۳۰ ثانیه‌ای)
-    start_audio_capture(sensor_id=box_id, segment_seconds=30)
-    print("[sensor_role] audio_capture started")
+    segment_seconds = get_audio_segment_seconds(cfg)
+    start_audio_capture(sensor_id=box_id, segment_seconds=segment_seconds)
+    print(
+        f"[sensor_role] audio_capture started (segment={segment_seconds}s)"
+    )
 
     # شروع uplink به مرکزی
     if online_enabled:

@@ -127,6 +127,8 @@ def wizard_central_step2():
         "server_host": _WIZARD_STATE.get("server_host", ""),
         "server_socket_port": _WIZARD_STATE.get("server_socket_port", 9000),
         "server_http_port": _WIZARD_STATE.get("server_http_port", 8000),
+        "audio_segment_seconds": _WIZARD_STATE.get("audio_segment_seconds", 30),
+        "online_enabled": _WIZARD_STATE.get("online_enabled", True),
     }
 
     errors = []
@@ -140,14 +142,23 @@ def wizard_central_step2():
             server_http_port = int(request.form.get("server_http_port") or "8000")
         except ValueError:
             server_http_port = 8000
+        try:
+            audio_segment_seconds = int(request.form.get("audio_segment_seconds") or "30")
+        except ValueError:
+            audio_segment_seconds = 30
+        online_enabled = request.form.get("online_enabled") == "on"
 
         if not server_host:
             errors.append("آدرس سرور اصلی الزامی است.")
+        if audio_segment_seconds <= 0:
+            errors.append("بازه ضبط صدا باید بزرگتر از صفر باشد.")
 
         if not errors:
             _WIZARD_STATE["server_host"] = server_host
             _WIZARD_STATE["server_socket_port"] = server_socket_port
             _WIZARD_STATE["server_http_port"] = server_http_port
+            _WIZARD_STATE["audio_segment_seconds"] = audio_segment_seconds
+            _WIZARD_STATE["online_enabled"] = online_enabled
 
             return redirect(url_for("wizard_central_confirm"))
 
@@ -169,8 +180,11 @@ def wizard_central_confirm():
                 "server_host": _WIZARD_STATE["server_host"],
                 "server_socket_port": _WIZARD_STATE["server_socket_port"],
                 "server_http_port": _WIZARD_STATE["server_http_port"],
+                "audio_segment_seconds": _WIZARD_STATE.get("audio_segment_seconds", 30),
+                "online_enabled": _WIZARD_STATE.get("online_enabled", True),
             },
             "sensor": None,
+            "audio_segment_seconds": _WIZARD_STATE.get("audio_segment_seconds", 30),
         }
         set_config(cfg)
         save_config()
@@ -201,6 +215,7 @@ def wizard_sensor_step1():
         "wifi_password": _WIZARD_STATE.get("wifi_password", ""),
         "central_host": _WIZARD_STATE.get("central_host", "172.10.1.1"),
         "central_http_port": _WIZARD_STATE.get("central_http_port", DEFAULT_HTTP_PORT),
+        "audio_segment_seconds": _WIZARD_STATE.get("audio_segment_seconds", 30),
         "online_enabled": _WIZARD_STATE.get("online_enabled", True),
     }
 
@@ -216,6 +231,10 @@ def wizard_sensor_step1():
             )
         except ValueError:
             central_http_port = DEFAULT_HTTP_PORT
+        try:
+            audio_segment_seconds = int(request.form.get("audio_segment_seconds") or "30")
+        except ValueError:
+            audio_segment_seconds = 30
         online_enabled = request.form.get("online_enabled") == "on"
 
         if not sensor_name:
@@ -224,6 +243,8 @@ def wizard_sensor_step1():
             errors.append("نام وای‌فای مرکزی الزامی است.")
         if not wifi_password:
             errors.append("رمز وای‌فای مرکزی الزامی است.")
+        if audio_segment_seconds <= 0:
+            errors.append("بازه ضبط صدا باید بزرگتر از صفر باشد.")
 
         if not errors:
             _WIZARD_STATE.update(
@@ -232,6 +253,7 @@ def wizard_sensor_step1():
                 wifi_password=wifi_password,
                 central_host=central_host,
                 central_http_port=central_http_port,
+                audio_segment_seconds=audio_segment_seconds,
                 online_enabled=online_enabled,
             )
             return redirect(url_for("wizard_sensor_confirm"))
@@ -259,6 +281,7 @@ def wizard_sensor_confirm():
                 "auth_pass": "",
                 "online_enabled": _WIZARD_STATE.get("online_enabled", True),
             },
+            "audio_segment_seconds": _WIZARD_STATE.get("audio_segment_seconds", 30),
         }
         set_config(cfg)
         save_config()

@@ -35,7 +35,7 @@ from panel_crypto import ensure_box_keypair, load_box_public_key, decrypt_with_p
 from panel_sensors_local import get_latest_env
 from panel_audio_local import get_last_audio_segment, list_audio_segments
 from panel_health import get_health_status
-from panel_db import init_db, DB_PATH
+from panel_db import init_db, DB_PATH, get_latest_sensor_sample
 from panel_net_common import parse_basic_auth_header
 from central_sensors_link import (
     update_sensor_state_from_payload,
@@ -58,6 +58,39 @@ def _get_central_identity() -> Dict[str, Any]:
     box_id = get_box_id(cfg) or "UNKNOWN_CENTRAL"
     cluster_name = central_cfg.get("cluster_name") or box_id
     return {"box_id": box_id, "cluster_name": cluster_name}
+
+
+def _has_env_data(env: Dict[str, Any]) -> bool:
+    if not env:
+        return False
+    for k in ("temp", "hum", "gas_v", "gas_dv"):
+        if env.get(k) is not None:
+            return True
+    return False
+
+
+def _merge_env_with_db(env: Optional[Dict[str, Any]], sensor_id: str) -> Dict[str, Any]:
+    """
+    اگر env فعلی داده‌ای نداشت، آخرین مقدار DB را تزریق می‌کند تا داشبورد خالی نماند.
+    """
+    env = env or {}
+    if _has_env_data(env):
+        return env
+
+    fallback = get_latest_sensor_sample(sensor_id)
+    if not fallback:
+        return env
+
+    ts_iso, data = fallback
+    merged = {
+        "ts": env.get("ts") or ts_iso,
+        "temp": env.get("temp") if env.get("temp") is not None else data.get("temp"),
+        "hum": env.get("hum") if env.get("hum") is not None else data.get("hum"),
+        "gas_v": env.get("gas_v") if env.get("gas_v") is not None else data.get("gas_v"),
+        "gas_dv": env.get("gas_dv") if env.get("gas_dv") is not None else data.get("gas_dv"),
+        "gas_high": env.get("gas_high") if env.get("gas_high") is not None else data.get("gas_high", False),
+    }
+    return merged
 
 
 def _build_central_status() -> Dict[str, Any]:
@@ -83,14 +116,20 @@ def _build_central_status() -> Dict[str, Any]:
             "gas_high": False,
         }
 
+    env = _merge_env_with_db(env, ident["box_id"])
+
     # health
     h = get_health_status()
     if h:
+        cpu = h.cpu_percent if h.cpu_percent >= 0 else None
+        mem = h.mem_percent if h.mem_percent >= 0 else None
+        disk = h.disk_percent if h.disk_percent >= 0 else None
+        inode = h.inode_percent if h.inode_percent >= 0 else None
         health = {
-            "cpu_percent": h.cpu_percent,
-            "mem_percent": h.mem_percent,
-            "disk_percent": h.disk_percent,
-            "inode_percent": h.inode_percent,
+            "cpu_percent": cpu,
+            "mem_percent": mem,
+            "disk_percent": disk,
+            "inode_percent": inode,
             "last_issue": h.last_issue,
             "ts": h.ts,
         }
@@ -131,13 +170,14 @@ def central_dashboard():
     sensor_cards = []
     for st in sensors:
         state_label = compute_state_label(st)
+        env = _merge_env_with_db(st.env, st.sensor_id)
         sensor_cards.append(
             {
                 "sensor_id": st.sensor_id,
                 "sensor_name": st.sensor_name,
                 "ip": st.ip,
                 "last_seen": st.last_seen,
-                "env": st.env,
+                "env": env,
                 "audio_summary": st.audio_summary,
                 "health": st.health,
                 "state": state_label,

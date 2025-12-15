@@ -35,12 +35,18 @@ def _normalize_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         cfg["central"] = None
     if "sensor" not in cfg:
         cfg["sensor"] = None
+    if "audio_segment_seconds" not in cfg:
+        cfg["audio_segment_seconds"] = 30
     if cfg.get("sensor") is None:
         cfg["sensor"] = {}
     sensor_cfg = cfg.get("sensor")
     if isinstance(sensor_cfg, dict) and "online_enabled" not in sensor_cfg:
         sensor_cfg["online_enabled"] = True
         cfg["sensor"] = sensor_cfg
+    central_cfg = cfg.get("central")
+    if isinstance(central_cfg, dict) and "online_enabled" not in central_cfg:
+        central_cfg["online_enabled"] = True
+        cfg["central"] = central_cfg
     return cfg
 
 
@@ -131,6 +137,18 @@ def get_sensor_config(cfg: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]
     if not cfg:
         return None
     return cfg.get("sensor") or None
+
+
+def get_audio_segment_seconds(cfg: Optional[Dict[str, Any]] = None) -> int:
+    if cfg is None:
+        cfg = get_config()
+    if not cfg:
+        return 30
+    try:
+        val = int(cfg.get("audio_segment_seconds", 30))
+    except Exception:
+        return 30
+    return val if val > 0 else 30
 
 
 if __name__ == "__main__":

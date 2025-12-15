@@ -39,10 +39,10 @@
         </p>
         <table>
           <tr><th>پارامتر</th><th>مقدار</th></tr>
-          <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) }}%</td></tr>
-          <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) }}%</td></tr>
-          <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) }}%</td></tr>
-          <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) }}%</td></tr>
+          <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) + '%' if h.cpu_percent is not none else '-' }}</td></tr>
+          <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) + '%' if h.mem_percent is not none else '-' }}</td></tr>
+          <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) + '%' if h.disk_percent is not none else '-' }}</td></tr>
+          <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) + '%' if h.inode_percent is not none else '-' }}</td></tr>
         </table>
         {% if h.last_issue %}
           <p style="margin-top:8px; font-size:12px;">

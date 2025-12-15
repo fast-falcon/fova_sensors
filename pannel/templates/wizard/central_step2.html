@@ -24,6 +24,15 @@
       <label>پورت HTTP سرور:</label>
       <input type="number" name="server_http_port" value="{{ server_http_port }}" required />
     </div>
+    <div>
+      <label>بازه ضبط صدا (ثانیه):</label>
+      <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" min="1" required />
+    </div>
+    <div>
+      <label>اتصال آنلاین به سرور اصلی:</label>
+      <input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %} />
+      <span>در صورت غیرفعال کردن، باکس مرکزی فقط محلی کار می‌کند.</span>
+    </div>
     <button type="submit">تایید و ادامه</button>
   </form>
 </body>
