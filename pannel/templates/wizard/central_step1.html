@@ -1,30 +1,54 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>پیکربندی مرکزی - گام ۱</title>
+  <style>
+    :root { --bg:#f8fafc; --card:#ffffff; --border:#e2e8f0; --text:#0f172a; --muted:#475569; --primary:#2563eb; --danger:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"IRANSans","Segoe UI",Tahoma,sans-serif; background:var(--bg); color:var(--text); }
+    .wizard-page { max-width:800px; margin:40px auto; padding:0 16px; }
+    .wizard-card { background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:0 10px 30px rgba(15,23,42,0.08); padding:20px; }
+    .wizard-title { font-size:20px; font-weight:700; margin-bottom:8px; }
+    .wizard-text { color:var(--muted); margin-bottom:16px; }
+    .form-row { margin-bottom:12px; display:flex; flex-direction:column; gap:6px; }
+    label { font-weight:600; color:var(--muted); }
+    input { padding:10px 12px; border-radius:10px; border:1px solid var(--border); font-size:14px; }
+    .wizard-btn { background:var(--primary); color:#fff; padding:10px 18px; border:none; border-radius:10px; font-weight:700; cursor:pointer; }
+    .wizard-btn:hover { opacity:0.95; }
+    .errors { background:#fee2e2; color:var(--danger); padding:10px; border-radius:10px; margin-bottom:12px; }
+  </style>
 </head>
 <body>
-  <h1>گام ۱: اطلاعات اولیه مرکزی</h1>
-  {% if errors %}
-    <ul style="color:red">
-      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
-    </ul>
-  {% endif %}
-  <form method="post">
-    <div>
-      <label>نام مجموعه (Cluster):</label>
-      <input type="text" name="cluster_name" value="{{ cluster_name }}" required />
+  <div class="wizard-page">
+    <div class="wizard-card">
+      <div class="wizard-title">گام ۱: اطلاعات اولیه مرکزی</div>
+      <div class="wizard-text">نام مجموعه و جزئیات هات‌اسپات داخلی را تنظیم کنید.</div>
+      {% if errors %}
+        <div class="errors">
+          <ul style="margin:0; padding-inline-start:18px;">
+            {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      <form method="post">
+        <div class="form-row">
+          <label>نام مجموعه (Cluster)</label>
+          <input type="text" name="cluster_name" value="{{ cluster_name }}" required />
+        </div>
+        <div class="form-row">
+          <label>SSID هات‌اسپات</label>
+          <input type="text" name="hotspot_ssid" value="{{ hotspot_ssid }}" required />
+        </div>
+        <div class="form-row">
+          <label>رمز هات‌اسپات</label>
+          <input type="password" name="hotspot_password" value="{{ hotspot_password }}" required />
+        </div>
+        <div style="margin-top:14px;">
+          <button class="wizard-btn" type="submit">تایید و ادامه</button>
+        </div>
+      </form>
     </div>
-    <div>
-      <label>SSID هات‌اسپات:</label>
-      <input type="text" name="hotspot_ssid" value="{{ hotspot_ssid }}" required />
-    </div>
-    <div>
-      <label>رمز هات‌اسپات:</label>
-      <input type="password" name="hotspot_password" value="{{ hotspot_password }}" required />
-    </div>
-    <button type="submit">تایید و ادامه</button>
-  </form>
+  </div>
 </body>
 </html>

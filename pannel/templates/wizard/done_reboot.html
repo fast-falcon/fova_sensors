@@ -1,11 +1,24 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>در حال ریبوت</title>
+  <style>
+    :root { --bg:#f8fafc; --card:#ffffff; --border:#e2e8f0; --text:#0f172a; --muted:#475569; --primary:#2563eb; }
+    body { margin:0; font-family:"IRANSans","Segoe UI",Tahoma,sans-serif; background:var(--bg); color:var(--text); }
+    .wizard-page { max-width:620px; margin:60px auto; padding:0 16px; }
+    .wizard-card { background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:0 10px 30px rgba(15,23,42,0.08); padding:20px; text-align:center; }
+    .wizard-title { font-size:22px; font-weight:800; margin-bottom:10px; }
+    .wizard-text { color:var(--muted); margin-bottom:12px; }
+  </style>
 </head>
 <body>
-  <h1>ریستارت دستگاه</h1>
-  <p>تنظیمات {{ 'مرکزی' if role == 'central' else 'سنسور' }} ذخیره شد. دستگاه به زودی ریبوت می‌شود.</p>
+  <div class="wizard-page">
+    <div class="wizard-card">
+      <div class="wizard-title">ریستارت دستگاه</div>
+      <div class="wizard-text">تنظیمات {{ 'مرکزی' if role == 'central' else 'سنسور' }} ذخیره شد. دستگاه به زودی ریبوت می‌شود.</div>
+      <div class="wizard-text">لطفاً چند لحظه صبر کنید و سپس مجدداً به پنل متصل شوید.</div>
+    </div>
+  </div>
 </body>
 </html>
