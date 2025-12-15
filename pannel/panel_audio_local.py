@@ -180,6 +180,11 @@ def _make_small_wav(path_in: str, path_out: str) -> None:
         print(f"[panel_audio_local] File {path_in} does not exist, skipping small wav")
         return
 
+    size = os.path.getsize(path_in)
+    if size <= 44:
+        print(f"[panel_audio_local] File {path_in} is empty ({size} bytes), skipping small wav")
+        return
+
     with wave.open(path_in, "rb") as r:
         nch = r.getnchannels()
         sw = r.getsampwidth()
@@ -312,6 +317,19 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
 
 
 def _process_audio(raw_path: str, final_path: str) -> bool:
+    if not os.path.exists(raw_path):
+        print(f"[panel_audio_local] raw file missing, skipping: {raw_path}")
+        return False
+
+    raw_size = os.path.getsize(raw_path)
+    if raw_size <= 44:
+        print(f"[panel_audio_local] raw too small ({raw_size} bytes), skipping processing")
+        try:
+            os.remove(raw_path)
+        except FileNotFoundError:
+            pass
+        return False
+
     _fix_wav_header(raw_path, _NATIVE_CHANNELS, _NATIVE_RATE, _SAMPLE_WIDTH)
     _make_small_wav(raw_path, final_path)
     try:

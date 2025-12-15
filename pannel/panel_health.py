@@ -95,12 +95,23 @@ def _measure_mem_percent() -> float:
     try:
         mem_total = None
         mem_available = None
+        mem_free = None
+        buffers = None
+        cached = None
         with open("/proc/meminfo", "r") as f:
             for line in f:
                 if line.startswith("MemTotal:"):
                     mem_total = float(line.split()[1])
                 elif line.startswith("MemAvailable:"):
                     mem_available = float(line.split()[1])
+                elif line.startswith("MemFree:"):
+                    mem_free = float(line.split()[1])
+                elif line.startswith("Buffers:"):
+                    buffers = float(line.split()[1])
+                elif line.startswith("Cached:"):
+                    cached = float(line.split()[1])
+        if mem_available is None and None not in (mem_free, buffers, cached):
+            mem_available = mem_free + buffers + cached
         if mem_total and mem_available:
             used = mem_total - mem_available
             return used * 100.0 / mem_total

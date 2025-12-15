@@ -53,6 +53,15 @@ TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 
 
+@app.after_request
+def _disable_cache(resp):
+    """Disable HTTP caching so dashboard polling always returns fresh data."""
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
+
 def _get_central_identity() -> Dict[str, Any]:
     cfg = get_config() or {}
     central_cfg = get_central_config(cfg) or {}
@@ -210,11 +219,13 @@ def central_dashboard():
 @app.route("/audio")
 def central_audio():
     init_db()
-    ident = _get_central_identity()
+    central_status = _build_central_status()
+    ident = central_status["ident"]
     central_segments = list_audio_segments(ident["box_id"], limit=100)
     sensors = get_sensors_states()
     return render_template(
         "central/audio.html",
+        central=central_status,
         ident=ident,
         central_segments=central_segments,
         sensors=sensors,
