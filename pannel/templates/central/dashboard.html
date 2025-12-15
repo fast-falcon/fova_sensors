@@ -71,6 +71,50 @@
       {% else %}
         <p>هنوز هیچ صدایی ثبت نشده است.</p>
       {% endif %}
+
+      <h4 style="margin-top:16px;">آخرین صداهای ثبت شده (مرکزی و سنسورها)</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>نام</th>
+            <th>ID</th>
+            <th>وضعیت</th>
+            <th>زمان ضبط</th>
+            <th>مدت (ثانیه)</th>
+            <th>برچسب</th>
+          </tr>
+        </thead>
+        <tbody id="audio-body">
+          {% set audio_row = central.audio_summary.last_segment if central.audio_summary and central.audio_summary.last_segment is defined else None %}
+          <tr>
+            <td>{{ central.ident.cluster_name }}</td>
+            <td>{{ central.ident.box_id }}</td>
+            <td><span class="badge normal">مرکزی</span></td>
+            <td>{{ audio_row.ts if audio_row else '-' }}</td>
+            <td>{{ "%.1f"|format(audio_row.duration_sec) if audio_row and audio_row.duration_sec is not none else '-' }}</td>
+            <td>{{ audio_row.label if audio_row else '-' }}</td>
+          </tr>
+          {% for s in sensors %}
+            {% set last = s.audio_summary.last_segment if s.audio_summary and s.audio_summary.last_segment is defined else None %}
+            <tr>
+              <td>{{ s.sensor_name }}</td>
+              <td>{{ s.sensor_id }}</td>
+              <td>
+                {% if s.state == "online" %}
+                  <span class="badge online">آنلاین</span>
+                {% elif s.state == "offline" %}
+                  <span class="badge offline">آفلاین</span>
+                {% else %}
+                  <span class="badge unknown">نامشخص</span>
+                {% endif %}
+              </td>
+              <td>{{ last.ts if last else '-' }}</td>
+              <td>{{ "%.1f"|format(last.duration_sec) if last and last.duration_sec is not none else '-' }}</td>
+              <td>{{ last.label if last else '-' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -126,67 +170,6 @@
   {% endif %}
 </div>
 
-<div class="card">
-  <h3>سلامت سیستم مرکزی و سنسورها</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>نام</th>
-        <th>ID</th>
-        <th>IP</th>
-        <th>آخرین دیده شدن</th>
-        <th>وضعیت</th>
-        <th>CPU</th>
-        <th>RAM</th>
-        <th>Disk</th>
-        <th>Inode</th>
-        <th>آخرین مشکل</th>
-      </tr>
-    </thead>
-    <tbody id="system-body">
-      <tr>
-        {% set h = central.health or {} %}
-        <td>{{ central.ident.cluster_name }}</td>
-        <td>{{ central.ident.box_id }}</td>
-        <td>-</td>
-        <td id="system-central-ts">{{ h.ts or '-' }}</td>
-        <td><span class="badge normal">مرکزی</span></td>
-        <td id="system-central-cpu">{{ "%.1f"|format(h.cpu_percent) + '%' if h.cpu_percent is not none else '-' }}</td>
-        <td id="system-central-ram">{{ "%.1f"|format(h.mem_percent) + '%' if h.mem_percent is not none else '-' }}</td>
-        <td id="system-central-disk">{{ "%.1f"|format(h.disk_percent) + '%' if h.disk_percent is not none else '-' }}</td>
-        <td id="system-central-inode">{{ "%.1f"|format(h.inode_percent) + '%' if h.inode_percent is not none else '-' }}</td>
-        <td id="system-central-issue">{{ h.last_issue or '-' }}</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-<div class="card">
-  <h3>آخرین صداهای ثبت شده</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>نام</th>
-        <th>ID</th>
-        <th>وضعیت</th>
-        <th>زمان ضبط</th>
-        <th>مدت (ثانیه)</th>
-        <th>برچسب</th>
-      </tr>
-    </thead>
-    <tbody id="audio-body">
-      {% set a = central.audio_summary.last_segment if central.audio_summary and central.audio_summary.last_segment is defined else None %}
-      <tr>
-        <td>{{ central.ident.cluster_name }}</td>
-        <td>{{ central.ident.box_id }}</td>
-        <td><span class="badge normal">مرکزی</span></td>
-        <td id="audio-central-ts">{{ a.ts if a else '-' }}</td>
-        <td id="audio-central-dur">{{ "%.1f"|format(a.duration_sec) if a and a.duration_sec is not none else '-' }}</td>
-        <td id="audio-central-label">{{ a.label if a else '-' }}</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
 <script>
   function formatValue(val, suffix) {
     if (typeof suffix === 'undefined') {
@@ -288,72 +271,15 @@
     body.innerHTML = rows.join('');
   }
 
-  function renderSystemState(payload) {
-    if (!payload) {
-      return;
-    }
-    var body = document.getElementById('system-body');
-    if (!body) {
-      return;
-    }
-    var rows = [];
-
-    var central = payload.central || {};
-    var ch = central.health || {};
-    rows.push(
-      '<tr>' +
-        '<td>{{ central.ident.cluster_name }}</td>' +
-        '<td>{{ central.ident.box_id }}</td>' +
-        '<td>-</td>' +
-        '<td>' + (ch.ts || '-') + '</td>' +
-        '<td><span class="badge normal">مرکزی</span></td>' +
-        '<td>' + formatValue(ch.cpu_percent, '%') + '</td>' +
-        '<td>' + formatValue(ch.mem_percent, '%') + '</td>' +
-        '<td>' + formatValue(ch.disk_percent, '%') + '</td>' +
-        '<td>' + formatValue(ch.inode_percent, '%') + '</td>' +
-        '<td>' + (ch.last_issue || '-') + '</td>' +
-      '</tr>'
-    );
-
-    var sensors = payload.sensors || [];
-    sensors.forEach(function (s) {
-      var h = s.health || {};
-      var stateBadge;
-      if (s.state === 'online') {
-        stateBadge = '<span class="badge online">آنلاین</span>';
-      } else if (s.state === 'offline') {
-        stateBadge = '<span class="badge offline">آفلاین</span>';
-      } else {
-        stateBadge = '<span class="badge unknown">نامشخص</span>';
-      }
-      rows.push(
-        '<tr>' +
-          '<td>' + (s.sensor_name || '-') + '</td>' +
-          '<td>' + (s.sensor_id || '-') + '</td>' +
-          '<td>' + (s.ip || '-') + '</td>' +
-          '<td>' + (s.last_seen || '-') + '</td>' +
-          '<td>' + stateBadge + '</td>' +
-          '<td>' + formatValue(h.cpu_percent, '%') + '</td>' +
-          '<td>' + formatValue(h.mem_percent, '%') + '</td>' +
-          '<td>' + formatValue(h.disk_percent, '%') + '</td>' +
-          '<td>' + formatValue(h.inode_percent, '%') + '</td>' +
-          '<td>' + (h.last_issue || '-') + '</td>' +
-        '</tr>'
-      );
-    });
-
-    body.innerHTML = rows.join('');
-  }
-
-  function renderAudioState(payload) {
-    if (!payload) {
-      return;
-    }
+  function renderAudioList(central, sensors) {
     var body = document.getElementById('audio-body');
     if (!body) {
       return;
     }
+
     var rows = [];
+    var cent = central || {};
+    var centIdent = cent.ident || {};
 
     function renderAudioRow(name, id, state, summary) {
       var badge;
@@ -378,11 +304,9 @@
       );
     }
 
-    var central = payload.central || {};
-    renderAudioRow('{{ central.ident.cluster_name }}', central.sensor_id || '{{ central.ident.box_id }}', 'online', central.audio_summary || {});
+    renderAudioRow(centIdent.cluster_name, cent.sensor_id || centIdent.box_id, 'online', cent.audio_summary || {});
 
-    var sensors = payload.sensors || [];
-    sensors.forEach(function (s) {
+    (sensors || []).forEach(function (s) {
       renderAudioRow(s.sensor_name, s.sensor_id, s.state, s.audio_summary || {});
     });
 
@@ -399,6 +323,7 @@
         if (payload.sensors) {
           renderSensors(payload.sensors);
         }
+        renderAudioList(payload.central, payload.sensors);
       } catch (e) {
         alert('dashboard json parse error: ' + (e && e.message ? e.message : e));
         console.warn('dashboard json parse error', e);
@@ -443,99 +368,6 @@
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) {
       fetchDashboard();
-    }
-  });
-
-  function fetchSystemState() {
-    function handleResponse(text) {
-      try {
-        var payload = JSON.parse(text);
-        renderSystemState(payload);
-      } catch (e) {
-        console.warn('system json parse error', e);
-      }
-    }
-
-    function handleError(prefix, err) {
-      console.warn(prefix, err);
-    }
-
-    if (window.fetch) {
-      fetch('/api/system_state', { cache: 'no-store' })
-        .then(function (r) { return r.text(); })
-        .then(handleResponse)
-        .catch(function (err) { handleError('system fetch error', err); });
-      return;
-    }
-
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200) {
-            handleResponse(xhr.responseText);
-          } else {
-            handleError('system xhr error', 'HTTP ' + xhr.status);
-          }
-        }
-      };
-      xhr.open('GET', '/api/system_state', true);
-      xhr.setRequestHeader('Cache-Control', 'no-cache');
-      xhr.send();
-    } catch (err) {
-      handleError('system xhr error', err);
-    }
-  }
-
-  function fetchAudioState() {
-    function handleResponse(text) {
-      try {
-        var payload = JSON.parse(text);
-        renderAudioState(payload);
-      } catch (e) {
-        console.warn('audio json parse error', e);
-      }
-    }
-
-    function handleError(prefix, err) {
-      console.warn(prefix, err);
-    }
-
-    if (window.fetch) {
-      fetch('/api/audio_state', { cache: 'no-store' })
-        .then(function (r) { return r.text(); })
-        .then(handleResponse)
-        .catch(function (err) { handleError('audio fetch error', err); });
-      return;
-    }
-
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200) {
-            handleResponse(xhr.responseText);
-          } else {
-            handleError('audio xhr error', 'HTTP ' + xhr.status);
-          }
-        }
-      };
-      xhr.open('GET', '/api/audio_state', true);
-      xhr.setRequestHeader('Cache-Control', 'no-cache');
-      xhr.send();
-    } catch (err) {
-      handleError('audio xhr error', err);
-    }
-  }
-
-  fetchSystemState();
-  fetchAudioState();
-  setInterval(fetchSystemState, 10000);
-  setInterval(fetchAudioState, 10000);
-  document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) {
-      fetchSystemState();
-      fetchAudioState();
     }
   });
 </script>
