@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>پیکربندی مرکزی - گام ۲</title>
+</head>
+<body>
+  <h1>گام ۲: اتصال به سرور اصلی</h1>
+  {% if errors %}
+    <ul style="color:red">
+      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+  <form method="post">
+    <div>
+      <label>آدرس سرور اصلی:</label>
+      <input type="text" name="server_host" value="{{ server_host }}" required />
+    </div>
+    <div>
+      <label>پورت سوکت سرور:</label>
+      <input type="number" name="server_socket_port" value="{{ server_socket_port }}" required />
+    </div>
+    <div>
+      <label>پورت HTTP سرور:</label>
+      <input type="number" name="server_http_port" value="{{ server_http_port }}" required />
+    </div>
+    <button type="submit">تایید و ادامه</button>
+  </form>
+</body>
+</html>
