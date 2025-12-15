@@ -15,17 +15,16 @@
 
 import threading
 
-from panel_paths import ensure_dirs, DEFAULT_HTTP_PORT
+from panel_paths import DEFAULT_HTTP_PORT, ensure_dirs
 from panel_db import init_db
-from panel_config import get_config
+from panel_config import get_box_id, get_config, get_sensor_config
 from panel_crypto import ensure_box_keypair
 from panel_ssh import ensure_ssh_key
-from panel_config import get_box_id, get_sensor_config
 
 from panel_sensors_local import start_sensor_reader
 from panel_audio_local import start_audio_capture
-from sensor_to_central import start_uplink
 from panel_monitor import monitor_loop
+from uplink_service import start_uplink
 
 import sensor_api
 
@@ -49,6 +48,7 @@ def run_sensor():
     box_id = get_box_id(cfg) or "UNKNOWN_SENSOR"
     sensor_cfg = get_sensor_config(cfg) or {}
     sensor_name = sensor_cfg.get("sensor_name") or box_id
+    online_enabled = sensor_cfg.get("online_enabled", True)
 
     print(f"[sensor_role] starting as SENSOR: {sensor_name} ({box_id})")
 
@@ -71,8 +71,11 @@ def run_sensor():
     print("[sensor_role] audio_capture started")
 
     # شروع uplink به مرکزی
-    start_uplink()
-    print("[sensor_role] uplink to central started")
+    if online_enabled:
+        start_uplink()
+        print("[sensor_role] uplink to central started (online mode)")
+    else:
+        print("[sensor_role] online mode disabled → uplink thread not started")
 
     # در نهایت، Flask پنل را بالا می‌آوریم
     print(f"[sensor_role] starting Flask panel on port {DEFAULT_HTTP_PORT}")

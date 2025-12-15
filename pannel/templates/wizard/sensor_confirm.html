@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>تایید تنظیمات سنسور</title>
+</head>
+<body>
+  <h1>تایید</h1>
+  <p>نام سنسور: {{ state.sensor_name }}</p>
+  <p>SSID وای‌فای: {{ state.wifi_ssid }}</p>
+  <p>هاست مرکزی: {{ state.central_host }}:{{ state.central_http_port }}</p>
+  <p>حالت آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
+  <form method="post">
+    <button type="submit">ذخیره و ریبوت</button>
+  </form>
+</body>
+</html>

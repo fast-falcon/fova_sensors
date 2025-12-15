@@ -201,6 +201,7 @@ def wizard_sensor_step1():
         "wifi_password": _WIZARD_STATE.get("wifi_password", ""),
         "central_host": _WIZARD_STATE.get("central_host", "172.10.1.1"),
         "central_http_port": _WIZARD_STATE.get("central_http_port", DEFAULT_HTTP_PORT),
+        "online_enabled": _WIZARD_STATE.get("online_enabled", True),
     }
 
     errors = []
@@ -215,6 +216,7 @@ def wizard_sensor_step1():
             )
         except ValueError:
             central_http_port = DEFAULT_HTTP_PORT
+        online_enabled = request.form.get("online_enabled") == "on"
 
         if not sensor_name:
             errors.append("نام سنسور الزامی است.")
@@ -230,6 +232,7 @@ def wizard_sensor_step1():
                 wifi_password=wifi_password,
                 central_host=central_host,
                 central_http_port=central_http_port,
+                online_enabled=online_enabled,
             )
             return redirect(url_for("wizard_sensor_confirm"))
 
@@ -254,6 +257,7 @@ def wizard_sensor_confirm():
                 "central_http_port": _WIZARD_STATE["central_http_port"],
                 "auth_user": "",
                 "auth_pass": "",
+                "online_enabled": _WIZARD_STATE.get("online_enabled", True),
             },
         }
         set_config(cfg)
