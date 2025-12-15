@@ -126,7 +126,10 @@
   {% endif %}
 </div>
 <script>
-  function formatValue(val, suffix = '') {
+  function formatValue(val, suffix) {
+    if (typeof suffix === 'undefined') {
+      suffix = '';
+    }
     if (val === null || val === undefined) {
       return '-';
     }
@@ -137,28 +140,28 @@
   }
 
   function setText(id, value) {
-    const el = document.getElementById(id);
+    var el = document.getElementById(id);
     if (el) {
       el.textContent = value;
     }
   }
 
   function setHtml(id, value) {
-    const el = document.getElementById(id);
+    var el = document.getElementById(id);
     if (el) {
       el.innerHTML = value;
     }
   }
 
   function renderCentral(data) {
-    const env = data.env || {};
-    const health = data.health || {};
+    var env = data.env || {};
+    var health = data.health || {};
     setText('central-last-ts', env.ts || 'نامشخص');
     setText('central-temp', formatValue(env.temp));
     setText('central-hum', formatValue(env.hum));
     setText('central-gas-v', formatValue(env.gas_v));
     setText('central-gas-dv', formatValue(env.gas_dv));
-    const gasHigh = env.gas_high ? '<span class="badge alert">HIGH</span>' : '';
+    var gasHigh = env.gas_high ? '<span class="badge alert">HIGH</span>' : '';
     setHtml('central-gas-high', gasHigh);
 
     setText('health-ts', health.ts || 'نامشخص');
@@ -167,16 +170,16 @@
     setText('health-disk', formatValue(health.disk_percent, '%'));
     setText('health-inode', formatValue(health.inode_percent, '%'));
 
-    const issueElem = document.getElementById('health-issue');
+    var issueElem = document.getElementById('health-issue');
     if (issueElem) {
       issueElem.textContent = health.last_issue || '';
       issueElem.style.display = health.last_issue ? 'inline-block' : 'none';
     }
 
-    const audio = (data.audio_summary && data.audio_summary.last_segment) || null;
+    var audio = (data.audio_summary && data.audio_summary.last_segment) || null;
     if (audio) {
-      const dur = typeof audio.duration_sec === 'number' ? audio.duration_sec.toFixed(1) + ' ثانیه' : '-';
-      const label = audio.label || '-';
+      var dur = typeof audio.duration_sec === 'number' ? audio.duration_sec.toFixed(1) + ' ثانیه' : '-';
+      var label = audio.label || '-';
       setText('audio-ts', audio.ts || '-');
       setText('audio-duration', dur);
       setText('audio-label', label);
@@ -191,38 +194,42 @@
   }
 
   function renderSensors(sensors) {
-    const body = document.getElementById('sensors-body');
+    var body = document.getElementById('sensors-body');
     if (!body || !Array.isArray(sensors)) {
       return;
     }
-    const rows = sensors.map((s) => {
-      const env = s.env || {};
-      const stateBadge = s.state === 'online'
-        ? '<span class="badge online">آنلاین</span>'
-        : s.state === 'offline'
-          ? '<span class="badge offline">آفلاین</span>'
-          : '<span class="badge unknown">نامشخص</span>';
-      const link = s.ip ? `<a href="http://${s.ip}:8080/" target="_blank">باز کردن پنل</a>` : '-';
-      return `
-        <tr>
-          <td>${s.sensor_name || '-'}</td>
-          <td>${s.sensor_id || '-'}</td>
-          <td>${s.ip || '-'}</td>
-          <td>${s.last_seen || '-'}</td>
-          <td>${safeVal(env.temp)}</td>
-          <td>${safeVal(env.hum)}</td>
-          <td>${safeVal(env.gas_v)}</td>
-          <td>${stateBadge}</td>
-          <td>${link}</td>
-        </tr>`;
+    var rows = sensors.map(function (s) {
+      var env = s.env || {};
+      var stateBadge;
+      if (s.state === 'online') {
+        stateBadge = '<span class="badge online">آنلاین</span>';
+      } else if (s.state === 'offline') {
+        stateBadge = '<span class="badge offline">آفلاین</span>';
+      } else {
+        stateBadge = '<span class="badge unknown">نامشخص</span>';
+      }
+      var link = s.ip ? '<a href="http://' + s.ip + ':8080/" target="_blank">باز کردن پنل</a>' : '-';
+      return (
+        '<tr>' +
+        '<td>' + (s.sensor_name || '-') + '</td>' +
+        '<td>' + (s.sensor_id || '-') + '</td>' +
+        '<td>' + (s.ip || '-') + '</td>' +
+        '<td>' + (s.last_seen || '-') + '</td>' +
+        '<td>' + safeVal(env.temp) + '</td>' +
+        '<td>' + safeVal(env.hum) + '</td>' +
+        '<td>' + safeVal(env.gas_v) + '</td>' +
+        '<td>' + stateBadge + '</td>' +
+        '<td>' + link + '</td>' +
+        '</tr>'
+      );
     });
     body.innerHTML = rows.join('');
   }
 
   function fetchDashboard() {
-    const handleResponse = (text) => {
+    function handleResponse(text) {
       try {
-        const payload = JSON.parse(text);
+        var payload = JSON.parse(text);
         if (payload.central) {
           renderCentral(payload.central);
         }
@@ -233,24 +240,24 @@
         alert('dashboard json parse error: ' + (e && e.message ? e.message : e));
         console.warn('dashboard json parse error', e);
       }
-    };
+    }
 
-    const handleError = (prefix, err) => {
+    function handleError(prefix, err) {
       alert(prefix + ': ' + (err && err.message ? err.message : err));
       console.warn(prefix, err);
-    };
+    }
 
     if (window.fetch) {
       fetch('/api/dashboard_state', { cache: 'no-store' })
-        .then((r) => r.text())
+        .then(function (r) { return r.text(); })
         .then(handleResponse)
-        .catch((err) => handleError('dashboard fetch error', err));
+        .catch(function (err) { handleError('dashboard fetch error', err); });
       return;
     }
 
     // fallback برای مرورگر قدیمی
     try {
-      const xhr = new XMLHttpRequest();
+      var xhr = new XMLHttpRequest();
       xhr.onreadystatechange = function () {
         if (xhr.readyState === 4) {
           if (xhr.status === 200) {
@@ -270,7 +277,7 @@
 
   fetchDashboard();
   setInterval(fetchDashboard, 10000);
-  document.addEventListener('visibilitychange', () => {
+  document.addEventListener('visibilitychange', function () {
     if (!document.hidden) {
       fetchDashboard();
     }
