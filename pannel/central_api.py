@@ -38,7 +38,7 @@ from panel_crypto import ensure_box_keypair, load_box_public_key, decrypt_with_p
 from panel_sensors_local import get_latest_env
 from panel_audio_local import get_last_audio_segment, list_audio_segments
 from panel_health import get_health_status
-from panel_db import init_db, DB_PATH, get_latest_sensor_sample
+from panel_db import init_db, DB_PATH, get_latest_sensor_sample, get_sensor_history
 from panel_net_common import parse_basic_auth_header
 from central_sensors_link import (
     update_sensor_state_from_payload,
@@ -103,6 +103,29 @@ def _merge_env_with_db(env: Optional[Dict[str, Any]], sensor_id: str) -> Dict[st
         "gas_high": env.get("gas_high") if env.get("gas_high") is not None else data.get("gas_high", False),
     }
     return merged
+
+
+def _build_env_history(sensor_id: str, env: Dict[str, Any], limit: int = 30) -> List[Dict[str, Any]]:
+    """آخرین نمونه‌های DB را به صورت لیست برای نمودار برمی‌گرداند."""
+
+    history_rows = list(get_sensor_history(sensor_id, limit=limit))
+    if env and env.get("ts"):
+        if not history_rows or history_rows[-1][0] != env.get("ts"):
+            history_rows.append((env.get("ts"), env))
+
+    normalized: List[Dict[str, Any]] = []
+    for ts_iso, row in history_rows[-limit:]:
+        normalized.append(
+            {
+                "ts": ts_iso,
+                "temp": row.get("temp"),
+                "hum": row.get("hum"),
+                "gas_v": row.get("gas_v"),
+                "gas_dv": row.get("gas_dv"),
+            }
+        )
+
+    return normalized
 
 
 def _compose_audio_summary(
@@ -179,6 +202,7 @@ def _build_central_status() -> Dict[str, Any]:
         }
 
     env = _merge_env_with_db(env, ident["box_id"])
+    env_history = _build_env_history(ident["box_id"], env)
 
     # health
     h = get_health_status()
@@ -190,6 +214,7 @@ def _build_central_status() -> Dict[str, Any]:
     return {
         "ident": ident,
         "env": env,
+        "env_history": env_history,
         "health": health,
         "audio_summary": audio_summary,
     }
@@ -210,6 +235,7 @@ def _build_sensor_cards() -> List[Dict[str, Any]]:
                 "ip": st.ip,
                 "last_seen": st.last_seen,
                 "env": env,
+                "env_history": _build_env_history(st.sensor_id, env),
                 "audio_summary": audio_summary,
                 "health": _normalize_health(getattr(st, "health", None)),
                 "state": state_label,

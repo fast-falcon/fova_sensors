@@ -182,6 +182,41 @@ def get_latest_sensor_sample(sensor_id: str) -> Optional[Tuple[str, Dict[str, An
     return ts_iso, data
 
 
+def get_sensor_history(sensor_id: str, limit: int = 20) -> Tuple[Tuple[str, Dict[str, Any]], ...]:
+    """
+    آخرین نمونه‌های ثبت‌شده را بر اساس زمان نزولی می‌آورد.
+
+    Args:
+        sensor_id: شناسه‌ی سنسور یا باکس.
+        limit: حداکثر تعداد نمونه‌هایی که باید برگردانده شود.
+
+    Returns:
+        تاپل از رکوردهای (ts_iso, data_dict) به ترتیب قدیمی → جدید.
+    """
+    conn = _get_conn()
+    cur = conn.cursor()
+    try:
+        limit = int(limit)
+    except Exception:
+        limit = 20
+    cur.execute(
+        "SELECT ts, data_json FROM sensor_samples WHERE sensor_id=? ORDER BY ts DESC LIMIT ?",
+        (sensor_id, limit),
+    )
+    rows = cur.fetchall() or []
+    records = []
+    for ts_iso, data_json in rows:
+        data: Dict[str, Any] = {}
+        try:
+            data = json.loads(data_json)
+        except Exception:
+            data = {}
+        records.append((ts_iso, data))
+
+    records.reverse()
+    return tuple(records)
+
+
 def store_audio_segment(
     sensor_id: str,
     ts_iso: str,

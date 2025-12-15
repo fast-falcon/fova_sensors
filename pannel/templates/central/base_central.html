@@ -1,111 +1,135 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>{% block title %}باکس مرکزی{% endblock %}</title>
   <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: sans-serif;
-      direction: rtl;
-      background: #020617;
-      color: #f9fafb;
       margin: 0;
+      font-family: "IRANSans", "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
     }
-    .container {
-      max-width: 1100px;
+
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .page {
+      max-width: 1400px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 24px;
     }
+
     .card {
-      background: #020617;
-      border-radius: 14px;
-      padding: 16px;
-      margin-top: 12px;
-      box-shadow: 0 4px 18px rgba(0,0,0,0.5);
-      border: 1px solid #1f2937;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
     }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .title-stack { line-height: 1.6; }
+    .title { font-size: 20px; font-weight: 700; }
+    .subtitle { color: var(--muted); font-size: 13px; }
+
     .nav {
       display: flex;
       gap: 8px;
-      margin-top: 8px;
-      margin-bottom: 8px;
       flex-wrap: wrap;
+      margin-top: 12px;
     }
     .nav a {
-      padding: 6px 12px;
+      padding: 8px 14px;
       border-radius: 999px;
-      background: #111827;
+      border: 1px solid var(--border);
+      color: var(--muted);
       font-size: 13px;
-      color: #e5e7eb;
-      text-decoration: none;
+      background: #f8fafc;
     }
     .nav a.active {
-      background: #10b981;
-      color: #111827;
-    }
-    a {
-      color: #10b981;
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
       text-decoration: none;
     }
-    a:hover {
-      text-decoration: underline;
-    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
     }
-    th, td {
-      padding: 6px 8px;
-      border-bottom: 1px solid #1f2937;
+    th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; }
+    th { background: #f8fafc; color: var(--muted); font-weight: 600; }
+
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge.online { background: #dcfce7; color: #166534; }
+    .badge.offline { background: #e2e8f0; color: #334155; }
+    .badge.normal { background: #e0f2fe; color: #075985; }
+    .badge.warn { background: #fef9c3; color: #92400e; }
+    .badge.alert { background: #fee2e2; color: #991b1b; }
+    .badge.unknown { background: #e2e8f0; color: #475569; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+    .section-title { font-size: 15px; font-weight: 700; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+
+    .metric-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: #f8fafc; }
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { font-size: 22px; font-weight: 800; margin: 4px 0; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-left: 6px; }
+    .dot-normal { background: var(--success); }
+    .dot-warn { background: var(--warning); }
+    .dot-danger { background: var(--danger); }
+    .dot-unknown { background: var(--muted); }
+
+    .circle-wrap { display: flex; gap: 12px; flex-wrap: wrap; }
+    .circle { width: 110px; height: 110px; border-radius: 50%; border: 10px solid var(--border); position: relative; background: #f8fafc; }
+    .circle .value { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--text); }
+
+    @media (max-width: 720px) {
+      .page { padding: 14px; }
     }
-    th {
-      background: #020617;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-    }
-    .badge.online { background: #16a34a; color: #022c22; }
-    .badge.offline { background: #6b7280; color: #020617; }
-    .badge.normal { background: #10b981; color: #052e16; }
-    .badge.warn { background: #facc15; color: #1f2937; }
-    .badge.alert { background: #ef4444; color: #111827; }
-    .badge.unknown { background: #4b5563; }
-    audio { width: 100%; }
-    .flex-row { display:flex; flex-wrap:wrap; gap:12px; }
-    .flex-col { flex:1 1 260px; }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-<div class="container">
+<div class="page">
   <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <div style="font-size:18px; font-weight:bold;">
-          {{ central.ident.cluster_name }}
-        </div>
-        <div style="font-size:12px; opacity:0.8;">
-          ID: {{ central.ident.box_id }}
-        </div>
+    <div class="header-bar">
+      <div class="title-stack">
+        <div class="title">{{ central.ident.cluster_name }}</div>
+        <div class="subtitle">ID: {{ central.ident.box_id }} · پنل باکس مرکزی</div>
       </div>
-      <div style="font-size:11px; opacity:0.7;">
-        پنل باکس مرکزی
-      </div>
+      <div class="subtitle">به‌روزرسانی خودکار هر ۱۰ ثانیه</div>
     </div>
-
     <div class="nav">
-      <a href="{{ url_for('central_dashboard') }}"
-         class="{% if request.path == '/' %}active{% endif %}">
-        وضعیت کلی
-      </a>
-      <a href="{{ url_for('central_audio') }}"
-         class="{% if '/audio' in request.path %}active{% endif %}">
-        صداها
-      </a>
+      <a href="{{ url_for('central_dashboard') }}" class="{% if request.path == '/' %}active{% endif %}">وضعیت کلی</a>
+      <a href="{{ url_for('central_audio') }}" class="{% if '/audio' in request.path %}active{% endif %}">صداها</a>
     </div>
   </div>
 
