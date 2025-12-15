@@ -1,0 +1,7 @@
+# Local configuration generated at runtime
+pannel/panel_config.json
+
+# Runtime artefacts
+pannel/sdcard_sim/
+*.pyc
+__pycache__/
