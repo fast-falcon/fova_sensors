@@ -3,24 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <title>انتخاب نقش باکس</title>
+  <style>
+    body { margin:0; font-family:'Segoe UI', Tahoma, sans-serif; background:#f8fafc; color:#0f172a; direction:rtl; }
+    .container { max-width:520px; margin:40px auto; padding:20px; }
+    .card { background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.06); }
+    h1 { margin:0 0 12px 0; font-size:22px; }
+    p { margin:6px 0; color:#475569; }
+    .option { display:flex; align-items:center; gap:10px; padding:12px; border:1px solid #e2e8f0; border-radius:12px; margin-top:10px; background:#f8fafc; }
+    button { margin-top:16px; width:100%; padding:12px; border:none; border-radius:10px; background:#3b82f6; color:#fff; font-weight:700; font-size:14px; cursor:pointer; }
+    button:hover { background:#2563eb; }
+    .notice { background:#ecfeff; border:1px solid #bae6fd; color:#0ea5e9; padding:10px; border-radius:10px; margin-bottom:12px; }
+  </style>
 </head>
 <body>
-  <h1>انتخاب نقش</h1>
-  {% if already_configured %}
-    <p style="color:green">پیکربندی قبلی یافت شد؛ در صورت نیاز می‌توانید نقش جدیدی انتخاب کنید.</p>
-  {% endif %}
-  <form method="post">
-    <div>
-      <label>
-        <input type="radio" name="role" value="central" required /> باکس مرکزی
-      </label>
+  <div class="container">
+    <div class="card">
+      <h1>انتخاب نقش باکس</h1>
+      {% if already_configured %}
+        <div class="notice">پیکربندی قبلی یافت شد؛ در صورت نیاز می‌توانید نقش جدیدی انتخاب کنید.</div>
+      {% endif %}
+      <form method="post">
+        <label class="option">
+          <input type="radio" name="role" value="central" required />
+          <div>
+            <div style="font-weight:700;">باکس مرکزی</div>
+            <div style="color:#475569; font-size:12px;">اتصال سنسورها، داشبورد اصلی و مدیریت صدا</div>
+          </div>
+        </label>
+        <label class="option">
+          <input type="radio" name="role" value="sensor" required />
+          <div>
+            <div style="font-weight:700;">باکس سنسور</div>
+            <div style="color:#475569; font-size:12px;">جمع‌آوری داده‌های محیطی و ارسال به مرکزی</div>
+          </div>
+        </label>
+        <button type="submit">ادامه</button>
+      </form>
     </div>
-    <div>
-      <label>
-        <input type="radio" name="role" value="sensor" required /> سنسور
-      </label>
-    </div>
-    <button type="submit">ادامه</button>
-  </form>
+  </div>
 </body>
 </html>

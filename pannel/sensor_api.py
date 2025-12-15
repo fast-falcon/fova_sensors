@@ -36,7 +36,7 @@ from panel_sensors_local import get_latest_env
 from panel_health import get_health_status
 from panel_audio_local import list_audio_segments, get_last_audio_segment
 from panel_net_common import parse_basic_auth_header
-from panel_db import init_db
+from panel_db import init_db, get_recent_sensor_samples
 
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -139,9 +139,32 @@ def _build_status_dict() -> Dict[str, Any]:
         "sensor_id": ident["box_id"],
         "sensor_name": ident["sensor_name"],
         "env": env,
+        "env_history": _build_env_history(ident["box_id"]),
         "health": health_dict,
         "audio_summary": audio_summary,
     }
+
+
+def _build_env_history(sensor_id: str, limit: int = 12) -> Dict[str, Any]:
+    samples = get_recent_sensor_samples(sensor_id, limit=limit)
+    history = {"ts": [], "temp": [], "hum": [], "gas_v": [], "gas_dv": []}
+
+    def _clean(value: Any) -> Any:
+        try:
+            return float(value)
+        except Exception:
+            return None
+
+    for item in samples:
+        ts_iso = item.get("ts")
+        data = item.get("data") or {}
+        history["ts"].append(ts_iso)
+        history["temp"].append(_clean(data.get("temp")))
+        history["hum"].append(_clean(data.get("hum")))
+        history["gas_v"].append(_clean(data.get("gas_v")))
+        history["gas_dv"].append(_clean(data.get("gas_dv")))
+
+    return history
 
 
 # ---------- UI ROUTES ----------
@@ -165,6 +188,12 @@ def sensor_audio_list():
 @app.route("/api/status", methods=["GET"])
 @require_basic_auth
 def api_status():
+    return jsonify(_build_status_dict())
+
+
+@app.route("/api/local_status", methods=["GET"])
+def api_local_status():
+    """همان خروجی status اما بدون احراز هویت برای UI خود دستگاه."""
     return jsonify(_build_status_dict())
 
 
