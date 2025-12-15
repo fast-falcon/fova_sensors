@@ -198,6 +198,23 @@
     }
   }
 
+  function renderCentralAudio(audioSummary) {
+    var audio = (audioSummary && audioSummary.last_segment) || null;
+    var ts = '-';
+    var dur = '-';
+    var label = '-';
+
+    if (audio) {
+      ts = audio.ts || '-';
+      dur = typeof audio.duration_sec === 'number' ? audio.duration_sec.toFixed(1) + ' ثانیه' : '-';
+      label = audio.label || '-';
+    }
+
+    setText('audio-ts', ts);
+    setText('audio-duration', dur);
+    setText('audio-label', label);
+  }
+
   function renderCentral(data) {
     var env = data.env || {};
     var health = data.health || {};
@@ -221,14 +238,7 @@
       issueElem.style.display = health.last_issue ? 'inline-block' : 'none';
     }
 
-    var audio = (data.audio_summary && data.audio_summary.last_segment) || null;
-    if (audio) {
-      var dur = typeof audio.duration_sec === 'number' ? audio.duration_sec.toFixed(1) + ' ثانیه' : '-';
-      var label = audio.label || '-';
-      setText('audio-ts', audio.ts || '-');
-      setText('audio-duration', dur);
-      setText('audio-label', label);
-    }
+    renderCentralAudio(data.audio_summary || {});
   }
 
   function safeVal(value) {
@@ -271,15 +281,13 @@
     body.innerHTML = rows.join('');
   }
 
-  function renderAudioList(central, sensors) {
+  function renderAudioList(centralRow, sensorsRows) {
     var body = document.getElementById('audio-body');
     if (!body) {
       return;
     }
 
     var rows = [];
-    var cent = central || {};
-    var centIdent = cent.ident || {};
 
     function renderAudioRow(name, id, state, summary) {
       var badge;
@@ -304,26 +312,52 @@
       );
     }
 
-    renderAudioRow(centIdent.cluster_name, cent.sensor_id || centIdent.box_id, 'online', cent.audio_summary || {});
+    if (centralRow) {
+      renderAudioRow(
+        centralRow.name || '-',
+        centralRow.sensor_id || '-',
+        centralRow.state || 'online',
+        centralRow.audio_summary || {}
+      );
+    }
 
-    (sensors || []).forEach(function (s) {
+    (sensorsRows || []).forEach(function (s) {
       renderAudioRow(s.sensor_name, s.sensor_id, s.state, s.audio_summary || {});
     });
 
     body.innerHTML = rows.join('');
   }
 
+  var lastDashboard = null;
+
   function fetchDashboard() {
     function handleResponse(text) {
       try {
         var payload = JSON.parse(text);
+        lastDashboard = payload;
         if (payload.central) {
           renderCentral(payload.central);
         }
         if (payload.sensors) {
           renderSensors(payload.sensors);
         }
-        renderAudioList(payload.central, payload.sensors);
+        renderAudioList(
+          {
+            name: (payload.central && payload.central.ident && payload.central.ident.cluster_name) || '-',
+            sensor_id: (payload.central && payload.central.ident && payload.central.ident.box_id) || '-',
+            state: 'online',
+            audio_summary: (payload.central && payload.central.audio_summary) || {},
+          },
+          (payload.sensors || []).map(function (s) {
+            return {
+              sensor_name: s.sensor_name,
+              sensor_id: s.sensor_id,
+              state: s.state,
+              audio_summary: s.audio_summary || {},
+            };
+          })
+        );
+        fetchAudioState();
       } catch (e) {
         alert('dashboard json parse error: ' + (e && e.message ? e.message : e));
         console.warn('dashboard json parse error', e);
@@ -361,6 +395,53 @@
     } catch (err) {
       handleError('dashboard xhr error', err);
     }
+  }
+
+  function fetchAudioState() {
+    if (!window.fetch) {
+      return;
+    }
+    fetch('/api/audio_state', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (audioState) {
+        var centralName = '-';
+        var dashboardSensors = [];
+
+        if (lastDashboard && lastDashboard.central && lastDashboard.central.ident) {
+          centralName = lastDashboard.central.ident.cluster_name || '-';
+        }
+        if (lastDashboard && Array.isArray(lastDashboard.sensors)) {
+          dashboardSensors = lastDashboard.sensors;
+        }
+
+        var centralRow = {
+          name: centralName,
+          sensor_id: (audioState.central && audioState.central.sensor_id) || '-',
+          state: 'online',
+          audio_summary: (audioState.central && audioState.central.audio_summary) || {},
+        };
+
+        var sensorMap = {};
+        dashboardSensors.forEach(function (s) {
+          sensorMap[s.sensor_id] = s;
+        });
+
+        var sensorsRows = (audioState.sensors || []).map(function (s) {
+          var dashInfo = sensorMap[s.sensor_id] || {};
+          return {
+            sensor_name: dashInfo.sensor_name || s.sensor_id || '-',
+            sensor_id: s.sensor_id,
+            state: dashInfo.state || s.state || 'unknown',
+            audio_summary: s.audio_summary || {},
+          };
+        });
+
+        renderCentralAudio(centralRow.audio_summary);
+        renderAudioList(centralRow, sensorsRows);
+      })
+      .catch(function (err) {
+        console.warn('audio_state fetch error', err);
+      });
   }
 
   fetchDashboard();
