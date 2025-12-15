@@ -18,6 +18,7 @@ API دیباگ:
 import os
 import base64
 import sqlite3
+import json
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 
@@ -93,6 +94,23 @@ def _merge_env_with_db(env: Optional[Dict[str, Any]], sensor_id: str) -> Dict[st
     return merged
 
 
+def _normalize_health(h: Optional["HealthStatus"]) -> Optional[Dict[str, Any]]:
+    if not h:
+        return None
+
+    def _clean(value: float) -> Optional[float]:
+        return value if value is not None and value >= 0 else None
+
+    return {
+        "cpu_percent": _clean(getattr(h, "cpu_percent", None)),
+        "mem_percent": _clean(getattr(h, "mem_percent", None)),
+        "disk_percent": _clean(getattr(h, "disk_percent", None)),
+        "inode_percent": _clean(getattr(h, "inode_percent", None)),
+        "last_issue": getattr(h, "last_issue", None),
+        "ts": getattr(h, "ts", None),
+    }
+
+
 def _build_central_status() -> Dict[str, Any]:
     ident = _get_central_identity()
     # env
@@ -120,21 +138,7 @@ def _build_central_status() -> Dict[str, Any]:
 
     # health
     h = get_health_status()
-    if h:
-        cpu = h.cpu_percent if h.cpu_percent >= 0 else None
-        mem = h.mem_percent if h.mem_percent >= 0 else None
-        disk = h.disk_percent if h.disk_percent >= 0 else None
-        inode = h.inode_percent if h.inode_percent >= 0 else None
-        health = {
-            "cpu_percent": cpu,
-            "mem_percent": mem,
-            "disk_percent": disk,
-            "inode_percent": inode,
-            "last_issue": h.last_issue,
-            "ts": h.ts,
-        }
-    else:
-        health = None
+    health = _normalize_health(h)
 
     # audio
     audio = get_last_audio_segment(ident["box_id"]) or None
@@ -158,16 +162,10 @@ def _build_central_status() -> Dict[str, Any]:
     }
 
 
-# ---------- UI routes ----------
-
-@app.route("/")
-def central_dashboard():
-    init_db()
-    central_status = _build_central_status()
+def _build_sensor_cards() -> List[Dict[str, Any]]:
     sensors = get_sensors_states()
+    sensor_cards: List[Dict[str, Any]] = []
 
-    # برای هر سنسور، یک state ساده (online/offline) می‌سازیم
-    sensor_cards = []
     for st in sensors:
         state_label = compute_state_label(st)
         env = _merge_env_with_db(st.env, st.sensor_id)
@@ -179,10 +177,21 @@ def central_dashboard():
                 "last_seen": st.last_seen,
                 "env": env,
                 "audio_summary": st.audio_summary,
-                "health": st.health,
+                "health": _normalize_health(getattr(st, "health", None)),
                 "state": state_label,
             }
         )
+
+    return sensor_cards
+
+
+# ---------- UI routes ----------
+
+@app.route("/")
+def central_dashboard():
+    init_db()
+    central_status = _build_central_status()
+    sensor_cards = _build_sensor_cards()
 
     return render_template(
         "central/dashboard.html",
@@ -203,6 +212,17 @@ def central_audio():
         central_segments=central_segments,
         sensors=sensors,
     )
+
+
+# ---------- Dashboard API (polling) ----------
+
+@app.route("/api/dashboard_state", methods=["GET"])
+def api_dashboard_state():
+    """Snapshot برای داشبورد (به جای وب‌سوکت، هر ۱۰ ثانیه با AJAX)."""
+    init_db()
+    central_status = _build_central_status()
+    sensor_cards = _build_sensor_cards()
+    return jsonify({"central": central_status, "sensors": sensor_cards})
 
 
 # ---------- API for sensors ----------

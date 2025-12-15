@@ -296,6 +296,10 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
             except Exception:
                 pass
 
+    rc = proc.returncode
+    print(
+        f"[panel_audio_local] tinycap segment finished (duration target={duration_sec}s, returncode={rc})"
+    )
     return True
 
 
@@ -338,6 +342,7 @@ def _audio_loop(sensor_id: str, segment_seconds: int):
             continue
 
         if _STOP_FLAG:
+            print("[panel_audio_local] STOP_FLAG set after capture, skipping processing")
             break
 
         processed_ok = _process_audio(raw_path, final_path)

@@ -86,6 +86,7 @@ def _read_sensor_lesten_subprocess() -> Dict[str, Optional[float]]:
             "sensor_lesten.py not found; set SENSOR_LESTEN_PATH or place it next to panel files"
         )
 
+    print(f"[panel_sensors_local] starting sensor_lesten subprocess: {sensor_path}")
     proc = subprocess.Popen(
         [sys.executable, sensor_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
@@ -97,9 +98,14 @@ def _read_sensor_lesten_subprocess() -> Dict[str, Optional[float]]:
             values = _parse_sensor_lesten_line(line)
             if values:
                 parsed.update({k: values.get(k, parsed.get(k)) for k in parsed.keys()})
+                print(
+                    "[panel_sensors_local] parsed sensor line",
+                    {k: parsed[k] for k in parsed.keys() if parsed[k] is not None},
+                )
                 if parsed["temp"] is not None or parsed["gas_v"] is not None:
                     break
             if time.time() > deadline:
+                print("[panel_sensors_local] sensor_lesten timeout without data")
                 break
     finally:
         proc.terminate()
@@ -129,7 +135,7 @@ def _read_env_hardware() -> EnvSnapshot:
     now_iso = datetime.now(timezone.utc).isoformat()
     try:
         readings = _read_sensor_lesten_subprocess()
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         print("[panel_sensors_local] sensor_lesten.py not found; returning empty snapshot")
         readings = {"temp": None, "hum": None, "gas_v": None, "gas_dv": None}
     except Exception as e:
@@ -171,7 +177,12 @@ def _sensor_reader_loop(sensor_id: str, interval_sec: float):
             store_sensor_sample(sensor_id, snap.ts_iso, data)
         except Exception as e:
             # در صورت خطا، فقط لاگ چاپ می‌کنیم و ادامه می‌دهیم
-            print("[panel_sensors_local] error:", e)
+            print(
+                "[panel_sensors_local] error during sensor read at",
+                datetime.now(timezone.utc).isoformat(),
+                "→",
+                e,
+            )
         time.sleep(interval_sec)
 
 

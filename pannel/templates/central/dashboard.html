@@ -8,23 +8,21 @@
       <h3>سنسور محیطی مرکزی</h3>
       {% set env = central.env %}
       <p style="font-size:12px; opacity:0.8;">
-        آخرین نمونه: {{ env.ts or "نامشخص" }}
+        آخرین نمونه: <span id="central-last-ts">{{ env.ts or "نامشخص" }}</span>
       </p>
       <table>
         <tr><th>پارامتر</th><th>مقدار</th></tr>
-        <tr><td>دما (°C)</td><td>{{ env.temp if env.temp is not none else "-" }}</td></tr>
-        <tr><td>رطوبت (%)</td><td>{{ env.hum if env.hum is not none else "-" }}</td></tr>
+        <tr><td>دما (°C)</td><td id="central-temp">{{ env.temp if env.temp is not none else "-" }}</td></tr>
+        <tr><td>رطوبت (%)</td><td id="central-hum">{{ env.hum if env.hum is not none else "-" }}</td></tr>
         <tr>
           <td>گاز (v)</td>
-          <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+          <td id="central-gas-v">{{ env.gas_v if env.gas_v is not none else "-" }}</td>
         </tr>
         <tr>
           <td>Δگاز</td>
           <td>
-            {{ env.gas_dv if env.gas_dv is not none else "-" }}
-            {% if env.gas_high %}
-              <span class="badge alert">HIGH</span>
-            {% endif %}
+            <span id="central-gas-dv">{{ env.gas_dv if env.gas_dv is not none else "-" }}</span>
+            <span id="central-gas-high">{% if env.gas_high %}<span class="badge alert">HIGH</span>{% endif %}</span>
           </td>
         </tr>
       </table>
@@ -35,19 +33,19 @@
       {% if central.health %}
         {% set h = central.health %}
         <p style="font-size:12px; opacity:0.8;">
-          آخرین بروزرسانی: {{ h.ts or "نامشخص" }}
+          آخرین بروزرسانی: <span id="health-ts">{{ h.ts or "نامشخص" }}</span>
         </p>
         <table>
           <tr><th>پارامتر</th><th>مقدار</th></tr>
-          <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) + '%' if h.cpu_percent is not none else '-' }}</td></tr>
-          <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) + '%' if h.mem_percent is not none else '-' }}</td></tr>
-          <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) + '%' if h.disk_percent is not none else '-' }}</td></tr>
-          <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) + '%' if h.inode_percent is not none else '-' }}</td></tr>
+          <tr><td>CPU</td><td id="health-cpu">{{ "%.1f"|format(h.cpu_percent) + '%' if h.cpu_percent is not none else '-' }}</td></tr>
+          <tr><td>RAM</td><td id="health-ram">{{ "%.1f"|format(h.mem_percent) + '%' if h.mem_percent is not none else '-' }}</td></tr>
+          <tr><td>Disk</td><td id="health-disk">{{ "%.1f"|format(h.disk_percent) + '%' if h.disk_percent is not none else '-' }}</td></tr>
+          <tr><td>Inode</td><td id="health-inode">{{ "%.1f"|format(h.inode_percent) + '%' if h.inode_percent is not none else '-' }}</td></tr>
         </table>
         {% if h.last_issue %}
           <p style="margin-top:8px; font-size:12px;">
             آخرین مشکل:
-            <span class="badge warn">{{ h.last_issue }}</span>
+            <span class="badge warn" id="health-issue">{{ h.last_issue }}</span>
           </p>
         {% endif %}
       {% else %}
@@ -62,9 +60,9 @@
         <table>
           <tr><th>زمان</th><th>مدت</th><th>برچسب</th></tr>
           <tr>
-            <td>{{ a.ts }}</td>
-            <td>{{ "%.1f"|format(a.duration_sec) }} ثانیه</td>
-            <td>{{ a.label if a.label else "-" }}</td>
+            <td id="audio-ts">{{ a.ts }}</td>
+            <td id="audio-duration">{{ "%.1f"|format(a.duration_sec) }} ثانیه</td>
+            <td id="audio-label">{{ a.label if a.label else "-" }}</td>
           </tr>
         </table>
         <p style="font-size:12px; margin-top:8px;">
@@ -92,38 +90,168 @@
         <th>وضعیت</th>
         <th>لینک پنل سنسور</th>
       </tr>
-      {% for s in sensors %}
-        {% set env = s.env or {} %}
-        <tr>
-          <td>{{ s.sensor_name }}</td>
-          <td>{{ s.sensor_id }}</td>
-          <td>{{ s.ip or "-" }}</td>
-          <td>{{ s.last_seen }}</td>
-          <td>{{ env.temp if env.temp is not none else "-" }}</td>
-          <td>{{ env.hum if env.hum is not none else "-" }}</td>
-          <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
-          <td>
-            {% if s.state == "online" %}
-              <span class="badge online">آنلاین</span>
-            {% elif s.state == "offline" %}
-              <span class="badge offline">آفلاین</span>
-            {% else %}
-              <span class="badge unknown">نامشخص</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if s.ip %}
-              <a href="http://{{ s.ip }}:8080/" target="_blank">باز کردن پنل</a>
-            {% else %}
-              -
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
+      <tbody id="sensors-body">
+        {% for s in sensors %}
+          {% set env = s.env or {} %}
+          <tr>
+            <td>{{ s.sensor_name }}</td>
+            <td>{{ s.sensor_id }}</td>
+            <td>{{ s.ip or "-" }}</td>
+            <td>{{ s.last_seen }}</td>
+            <td>{{ env.temp if env.temp is not none else "-" }}</td>
+            <td>{{ env.hum if env.hum is not none else "-" }}</td>
+            <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+            <td>
+              {% if s.state == "online" %}
+                <span class="badge online">آنلاین</span>
+              {% elif s.state == "offline" %}
+                <span class="badge offline">آفلاین</span>
+              {% else %}
+                <span class="badge unknown">نامشخص</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.ip %}
+                <a href="http://{{ s.ip }}:8080/" target="_blank">باز کردن پنل</a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
     </table>
   {% else %}
     <p>هنوز هیچ باکس سنسوری به این باکس متصل نشده است.</p>
   {% endif %}
 </div>
+<script>
+  function formatValue(val, suffix = '') {
+    if (val === null || val === undefined) {
+      return '-';
+    }
+    if (typeof val === 'number') {
+      return val.toFixed(1) + suffix;
+    }
+    return val + suffix;
+  }
+
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = value;
+    }
+  }
+
+  function setHtml(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.innerHTML = value;
+    }
+  }
+
+  function renderCentral(data) {
+    const env = data.env || {};
+    const health = data.health || {};
+    setText('central-last-ts', env.ts || 'نامشخص');
+    setText('central-temp', env.temp ?? '-');
+    setText('central-hum', env.hum ?? '-');
+    setText('central-gas-v', env.gas_v ?? '-');
+    setText('central-gas-dv', env.gas_dv ?? '-');
+    const gasHigh = env.gas_high ? '<span class="badge alert">HIGH</span>' : '';
+    setHtml('central-gas-high', gasHigh);
+
+    setText('health-ts', health.ts || 'نامشخص');
+    setText('health-cpu', formatValue(health.cpu_percent, '%'));
+    setText('health-ram', formatValue(health.mem_percent, '%'));
+    setText('health-disk', formatValue(health.disk_percent, '%'));
+    setText('health-inode', formatValue(health.inode_percent, '%'));
+
+    const issueElem = document.getElementById('health-issue');
+    if (issueElem) {
+      issueElem.textContent = health.last_issue || '';
+      issueElem.style.display = health.last_issue ? 'inline-block' : 'none';
+    }
+
+    const audio = (data.audio_summary && data.audio_summary.last_segment) || null;
+    if (audio) {
+      const dur = typeof audio.duration_sec === 'number' ? audio.duration_sec.toFixed(1) + ' ثانیه' : '-';
+      const label = audio.label || '-';
+      setText('audio-ts', audio.ts || '-');
+      setText('audio-duration', dur);
+      setText('audio-label', label);
+    }
+  }
+
+  function renderSensors(sensors) {
+    const body = document.getElementById('sensors-body');
+    if (!body || !Array.isArray(sensors)) {
+      return;
+    }
+    const rows = sensors.map((s) => {
+      const env = s.env || {};
+      const stateBadge = s.state === 'online'
+        ? '<span class="badge online">آنلاین</span>'
+        : s.state === 'offline'
+          ? '<span class="badge offline">آفلاین</span>'
+          : '<span class="badge unknown">نامشخص</span>';
+      const link = s.ip ? `<a href="http://${s.ip}:8080/" target="_blank">باز کردن پنل</a>` : '-';
+      return `
+        <tr>
+          <td>${s.sensor_name || '-'}</td>
+          <td>${s.sensor_id || '-'}</td>
+          <td>${s.ip || '-'}</td>
+          <td>${s.last_seen || '-'}</td>
+          <td>${env.temp ?? '-'}</td>
+          <td>${env.hum ?? '-'}</td>
+          <td>${env.gas_v ?? '-'}</td>
+          <td>${stateBadge}</td>
+          <td>${link}</td>
+        </tr>`;
+    });
+    body.innerHTML = rows.join('');
+  }
+
+  function fetchDashboard() {
+    const handleResponse = (text) => {
+      try {
+        const payload = JSON.parse(text);
+        if (payload.central) {
+          renderCentral(payload.central);
+        }
+        if (payload.sensors) {
+          renderSensors(payload.sensors);
+        }
+      } catch (e) {
+        console.warn('dashboard json parse error', e);
+      }
+    };
+
+    if (window.fetch) {
+      fetch('/api/dashboard_state')
+        .then((r) => r.text())
+        .then(handleResponse)
+        .catch((err) => console.warn('dashboard fetch error', err));
+      return;
+    }
+
+    // fallback برای مرورگر قدیمی
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          handleResponse(xhr.responseText);
+        }
+      };
+      xhr.open('GET', '/api/dashboard_state', true);
+      xhr.send();
+    } catch (err) {
+      console.warn('dashboard xhr error', err);
+    }
+  }
+
+  fetchDashboard();
+  setInterval(fetchDashboard, 10000);
+</script>
 {% endblock %}
 
