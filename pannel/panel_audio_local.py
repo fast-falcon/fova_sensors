@@ -63,20 +63,22 @@ def _configure_mixer():
 
 def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
     """
-    اجرای ضبط tinycap با قطع/وصل خودکار (بدون نیاز به ورودی کاربر).
+    اجرای ضبط tinycap به مدت duration_sec ثانیه، و سپس terminate/kill.
 
-    الهام‌گرفته از الگوی record.py: پروسس را با timeout کنترل می‌کنیم و در صورت گیرکردن
-    به‌صورت تهاجمی kill می‌زنیم تا حلقه بتواند دوباره شروع کند.
+    چرا این مدل؟
+      - روی بعضی buildهای tinycap، آپشن -T یا درست کار نمی‌کند یا در حالت device-busy
+        باعث گیرکردن می‌شود.
+      - اگر مانیتور/پروسس دیگری tinycap را بالا آورده باشد، tinycap ممکن است بلاک شود
+        و فایل 0-byte بسازد.
     """
 
     ensure_dirs()
 
+    # بدون -T: خودمان بعد از duration_sec پروسه را می‌بندیم (مثل base_record.py)
     cmd = [
         "su_env",
         "tinycap",
         filepath,
-        "-T",
-        str(duration_sec),
         "-D",
         _CARD,
         "-d",
@@ -89,10 +91,25 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         str(_NATIVE_CHANNELS),
     ]
 
-    # tinycap با -T خودش خارج می‌شود؛ timeout کوتاه برای گیرکردن غیرعادی می‌گذاریم
-    timeout_sec = max(1.0, float(duration_sec)) + 3.0
+    print("[panel_audio_local] starting tinycap:", " ".join(cmd), f"(duration={duration_sec}s)")
 
-    print("[panel_audio_local] starting tinycap (base_record style):", " ".join(cmd), f"(timeout={timeout_sec}s)")
+    # خروجی tinycap را برای دیباگ نگه می‌داریم (آخرین چند خط)
+    tail_lines: List[str] = []
+
+    def _tail_reader(p):
+        try:
+            if p.stdout is None:
+                return
+            for line in p.stdout:
+                line = line.rstrip("\n")
+                if line:
+                    tail_lines.append(line)
+                    # جلوگیری از رشد بی‌نهایت
+                    if len(tail_lines) > 80:
+                        del tail_lines[:40]
+        except Exception:
+            pass
+
     try:
         proc = subprocess.Popen(
             cmd,
@@ -100,6 +117,7 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            start_new_session=True,  # setsid -> بتوانیم کل گروه را kill کنیم
         )
     except FileNotFoundError:
         print("[panel_audio_local] tinycap not found on this device.")
@@ -108,62 +126,59 @@ def _start_tinycap_segment(filepath: str, duration_sec: int) -> bool:
         print("[panel_audio_local] error starting tinycap:", e)
         return False
 
-    try:
-        # خروجی tinycap را می‌خوانیم ولی مهم‌تر اینکه timeout داشته باشیم
+    t = threading.Thread(target=_tail_reader, args=(proc,), daemon=True)
+    t.start()
+
+    # صبر تا پایان segment (یا STOP_FLAG/exit زودتر)
+    deadline = time.time() + max(1, int(duration_sec))
+    while time.time() < deadline and not _STOP_FLAG:
+        if proc.poll() is not None:
+            break
+        time.sleep(0.2)
+
+    # اگر هنوز زنده است، با SIGTERM کل گروه را می‌بندیم
+    if proc.poll() is None:
         try:
-            stdout, _ = proc.communicate(timeout=timeout_sec)
-        except subprocess.TimeoutExpired:
-            print("[panel_audio_local] tinycap timeout → sending SIGTERM…")
-            proc.send_signal(signal.SIGTERM)
+            os.killpg(proc.pid, signal.SIGTERM)
+        except Exception:
             try:
-                stdout, _ = proc.communicate(timeout=3)
-            except subprocess.TimeoutExpired:
-                print("[panel_audio_local] tinycap still alive → sending SIGKILL…")
-                proc.kill()
-                stdout, _ = proc.communicate()
-        # اگر stop flag در میانه set شد، باز هم پروسس را می‌بندیم (با الگوی manual test)
-        if _STOP_FLAG and proc.poll() is None:
-            proc.send_signal(signal.SIGTERM)
+                proc.terminate()
+            except Exception:
+                pass
+
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
             try:
                 proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                print("[panel_audio_local] tinycap still alive after STOP_FLAG → SIGKILL")
-                proc.kill()
-    finally:
-        try:
-            # خواندن باقیمانده stdout برای لاگ
-            if proc.stdout:
-                for line in proc.stdout.readlines():
-                    if line:
-                        print(line, end="")
-        except Exception:
-            pass
+            except Exception:
+                pass
 
     rc = proc.returncode
     size_bytes = os.path.getsize(filepath) if os.path.exists(filepath) else 0
-    print(
-        f"[panel_audio_local] tinycap segment finished (target={duration_sec}s, returncode={rc}, size={size_bytes} bytes)"
-    )
+    print(f"[panel_audio_local] tinycap finished (target={duration_sec}s, returncode={rc}, size={size_bytes} bytes)")
 
-    if os.path.exists(filepath):
+    # اگر فایل خیلی کوچک/خالی است، خروجی tinycap را چاپ کن (برای علت‌یابی)
+    if size_bytes <= 44:
+        if tail_lines:
+            print("[panel_audio_local] tinycap output tail:\n  - " + "\n  - ".join(tail_lines[-20:]))
+        else:
+            print("[panel_audio_local] tinycap produced empty file and no stdout captured.")
         try:
-            _br.fix_wav_header(filepath, _NATIVE_CHANNELS, _NATIVE_RATE, _SAMPLE_WIDTH)
-        except Exception as e:
-            print("[panel_audio_local] fix_wav_header error after tinycap:", e)
-
-    post_fix_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
-    if post_fix_size <= 44:
-        print(
-            f"[panel_audio_local] tinycap produced empty/invalid WAV (post-fix size={post_fix_size}); removing and retrying later"
-        )
-        try:
-            os.remove(filepath)
-        except FileNotFoundError:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except Exception:
             pass
         return False
 
     return True
-
 
 def _process_audio(raw_path: str, final_path: str) -> bool:
     if not os.path.exists(raw_path):

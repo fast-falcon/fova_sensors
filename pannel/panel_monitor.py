@@ -42,6 +42,15 @@ BROWSER_PROCESS_HINTS = ["com.android.browser", "com.android.chrome", "org.chrom
 RECORDER_PROCESS_HINTS = ["tinycap"]
 
 
+
+# IMPORTANT:
+# این ماژول قبلاً برای تست، اگر tinycap پیدا نمی‌شد یک ضبط ساده‌ی جداگانه را
+# (detach) استارت می‌کرد. وقتی panel_audio_local فعال باشد، این رفتار باعث
+# تداخل/قفل شدن device (pcm) و تولید فایل‌های 0-byte می‌شود.
+#
+# به صورت پیش‌فرض این fallback را خاموش می‌کنیم.
+ENABLE_FALLBACK_RECORDER = False
+
 def _stat_free_space_bytes(path: str) -> int:
     st = os.statvfs(path)
     return int(st.f_bavail * st.f_frsize)
@@ -200,6 +209,9 @@ def _start_audio_recorder_if_needed() -> None:
     اگر پروسس tinycap پیدا نشود، یک tinycap ساده را استارت می‌کند.
     TODO: بعداً این تابع را به panel_audio_local یا اسکریپت واقعی ضبط وصل کن.
     """
+    if not ENABLE_FALLBACK_RECORDER:
+        return
+
     if _is_any_process_running(RECORDER_PROCESS_HINTS):
         return
 
