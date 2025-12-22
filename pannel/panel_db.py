@@ -12,7 +12,7 @@ import json
 import sqlite3
 import threading
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple, List
+from typing import Any, Dict, Optional, Tuple
 
 from panel_paths import DB_PATH, ensure_dirs
 
@@ -180,35 +180,6 @@ def get_latest_sensor_sample(sensor_id: str) -> Optional[Tuple[str, Dict[str, An
     except Exception:
         data = {}
     return ts_iso, data
-
-
-def get_sensor_history(sensor_id: str, limit: int = 30) -> List[Tuple[str, Dict[str, Any]]]:
-    """آخرین نمونه‌های ثبت‌شده را به صورت لیست (ts, data) برمی‌گرداند."""
-
-    conn = _get_conn()
-    cur = conn.cursor()
-    try:
-        lim = int(limit)
-    except Exception:
-        lim = 30
-
-    cur.execute(
-        "SELECT ts, data_json FROM sensor_samples "
-        "WHERE sensor_id=? ORDER BY ts DESC LIMIT ?",
-        (sensor_id, lim),
-    )
-    rows = cur.fetchall() or []
-
-    history: List[Tuple[str, Dict[str, Any]]] = []
-    for ts_iso, data_json in rows:
-        try:
-            parsed = json.loads(data_json) if data_json else {}
-        except Exception:
-            parsed = {}
-        history.append((ts_iso, parsed))
-
-    history.reverse()
-    return history
 
 
 def store_audio_segment(
