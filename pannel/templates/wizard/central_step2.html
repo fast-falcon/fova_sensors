@@ -1,39 +1,37 @@
-<!DOCTYPE html>
-<html lang="fa">
-<head>
-  <meta charset="UTF-8" />
-  <title>پیکربندی مرکزی - گام ۲</title>
-</head>
-<body>
+{% extends "wizard/base.html" %}
+{% block title %}پیکربندی مرکزی - گام ۲{% endblock %}
+{% block content %}
   <h1>گام ۲: اتصال به سرور اصلی</h1>
+  <p>اطلاعات ارتباط با سرور و بازه ضبط صدا را مشخص کنید.</p>
   {% if errors %}
-    <ul style="color:red">
-      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
-    </ul>
+    <div class="alert">
+      <ul style="margin:0; padding-right:18px;">
+        {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+      </ul>
+    </div>
   {% endif %}
   <form method="post">
-    <div>
-      <label>آدرس سرور اصلی:</label>
-      <input type="text" name="server_host" value="{{ server_host }}" required />
+    <label>آدرس سرور اصلی</label>
+    <input type="text" name="server_host" value="{{ server_host }}" required />
+
+    <div class="flex">
+      <div style="flex:1; min-width:160px;">
+        <label>پورت سوکت</label>
+        <input type="number" name="server_socket_port" value="{{ server_socket_port }}" />
+      </div>
+      <div style="flex:1; min-width:160px;">
+        <label>پورت HTTP</label>
+        <input type="number" name="server_http_port" value="{{ server_http_port }}" />
+      </div>
     </div>
-    <div>
-      <label>پورت سوکت سرور:</label>
-      <input type="number" name="server_socket_port" value="{{ server_socket_port }}" required />
+
+    <label>بازه ضبط صدا (ثانیه)</label>
+    <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" />
+
+    <label><input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %}> ارسال آنلاین به سرور اصلی</label>
+
+    <div class="flex" style="margin-top:12px;">
+      <button type="submit">بررسی و تایید</button>
     </div>
-    <div>
-      <label>پورت HTTP سرور:</label>
-      <input type="number" name="server_http_port" value="{{ server_http_port }}" required />
-    </div>
-    <div>
-      <label>بازه ضبط صدا (ثانیه):</label>
-      <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" min="1" required />
-    </div>
-    <div>
-      <label>اتصال آنلاین به سرور اصلی:</label>
-      <input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %} />
-      <span>در صورت غیرفعال کردن، باکس مرکزی فقط محلی کار می‌کند.</span>
-    </div>
-    <button type="submit">تایید و ادامه</button>
   </form>
-</body>
-</html>
+{% endblock %}

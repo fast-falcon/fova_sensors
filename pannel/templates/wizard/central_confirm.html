@@ -1,18 +1,16 @@
-<!DOCTYPE html>
-<html lang="fa">
-<head>
-  <meta charset="UTF-8" />
-  <title>تایید تنظیمات مرکزی</title>
-</head>
-<body>
+{% extends "wizard/base.html" %}
+{% block title %}تایید تنظیمات مرکزی{% endblock %}
+{% block content %}
   <h1>تایید نهایی</h1>
-  <p>نام مجموعه: {{ state.cluster_name }}</p>
-  <p>هات‌اسپات: {{ state.hotspot_ssid }}</p>
-  <p>سرور: {{ state.server_host }} | سوکت: {{ state.server_socket_port }} | HTTP: {{ state.server_http_port }}</p>
-  <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
-  <p>اتصال آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
-  <form method="post">
+  <p>لطفاً جزئیات را بررسی و تایید کنید.</p>
+  <ul style="line-height:1.8; color:#0f172a;">
+    <li>نام مجموعه: {{ state.cluster_name }}</li>
+    <li>هات‌اسپات: {{ state.hotspot_ssid }}</li>
+    <li>سرور: {{ state.server_host }} | سوکت: {{ state.server_socket_port }} | HTTP: {{ state.server_http_port }}</li>
+    <li>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</li>
+    <li>اتصال آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</li>
+  </ul>
+  <form method="post" class="flex" style="margin-top:12px;">
     <button type="submit">ذخیره و ریبوت</button>
   </form>
-</body>
-</html>
+{% endblock %}
