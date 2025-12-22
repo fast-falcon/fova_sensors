@@ -64,7 +64,7 @@ def _get_basic_auth_creds() -> Optional[Dict[str, str]]:
     return {"user": u, "pass": p}
 
 
-def _build_env_history(sensor_id: str, limit: int = 30) -> Dict[str, Any]:
+def _build_env_history(sensor_id: str, limit: int = 90) -> Dict[str, Any]:
     samples = get_recent_sensor_samples(sensor_id, limit)
     labels = []
     temp = []
@@ -303,4 +303,3 @@ if __name__ == "__main__":
     print("=== sensor_api test ===")
     print("فقط Flask را روی پورت 8080 بالا می‌آورد. Ctrl+C برای خروج.")
     run_flask()
-

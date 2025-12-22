@@ -188,6 +188,13 @@
 
   var palette = ['#3b82f6', '#8b5cf6', '#f97316', '#10b981', '#ef4444', '#0ea5e9', '#a855f7', '#14b8a6', '#eab308'];
 
+  var DISCONNECTED_COLOR = '#cbd5e1';
+  var DISCONNECTED_FILL = '#e2e8f0';
+  var MAX_ALLOWED_GAP = 2;
+  var MAX_HISTORY_POINTS = 90;
+  var POLL_INTERVAL_MS = 3000;
+  var sensorLayoutKey = null;
+
   function sensorColor(idx) { return palette[idx % palette.length]; }
 
   function fmt(val, unit, decimals) {
@@ -205,20 +212,63 @@
     }
   }
 
-  function padSeries(values, target) {
+  function normalizeSeries(values, target) {
     var arr = Array.isArray(values) ? values.slice(-target) : [];
     while (arr.length < target) { arr.unshift(null); }
     return arr;
   }
 
-  function pickLabels(target) {
-    var labels = dashboardData.central.history && dashboardData.central.history.labels ? dashboardData.central.history.labels.slice(-target) : [];
-    if (labels.length === 0) {
-      labels = [];
-      for (var i = 0; i < target; i++) { labels.push(''); }
-    }
-    while (labels.length < target) { labels.unshift(''); }
-    return labels;
+  function normalizeLabels(labels, target) {
+    var lbls = Array.isArray(labels) ? labels.slice(-target) : [];
+    while (lbls.length < target) { lbls.unshift(''); }
+    return lbls;
+  }
+
+  function fillMissing(values) {
+    var filled = [];
+    var flags = [];
+    var lastVal = null;
+    var gapCount = 0;
+    values.forEach(function(v) {
+      var num = typeof v === 'number' && !isNaN(v) ? v : null;
+      if (num !== null) {
+        lastVal = num;
+        gapCount = 0;
+        filled.push(num);
+        flags.push(false);
+        return;
+      }
+      if (lastVal === null) {
+        filled.push(null);
+        flags.push(false);
+        return;
+      }
+      gapCount += 1;
+      filled.push(lastVal);
+      flags.push(gapCount > MAX_ALLOWED_GAP);
+    });
+    return { data: filled, disconnected: flags };
+  }
+
+  function buildSeries(values, target) {
+    var normalized = normalizeSeries(values, target);
+    return fillMissing(normalized);
+  }
+
+  function styleSegments(flags, baseColor, fillColor) {
+    return {
+      borderColor: function(ctx) {
+        var idx = ctx.p1DataIndex;
+        var disconnected = flags[idx] || flags[Math.max(0, idx - 1)];
+        return disconnected ? DISCONNECTED_COLOR : baseColor;
+      },
+      backgroundColor: function(ctx) {
+        var idx = ctx.p1DataIndex;
+        var disconnected = flags[idx] || flags[Math.max(0, idx - 1)];
+        if (!fillColor) { return disconnected ? DISCONNECTED_COLOR : baseColor; }
+        return disconnected ? DISCONNECTED_FILL : fillColor;
+      }
+    };
   }
 
   function getMaxHistoryLength(key) {
@@ -236,65 +286,86 @@
   function buildComparisonChart(canvasId, key, unit) {
     var canvas = document.getElementById(canvasId);
     if (!canvas) { return; }
-    destroyChart(canvasId);
 
-    var targetLen = getMaxHistoryLength(key);
-    var labels = pickLabels(targetLen);
+    var targetLen = Math.min(Math.max(getMaxHistoryLength(key), 10), MAX_HISTORY_POINTS);
+    var labels = normalizeLabels(
+      dashboardData.central.history && dashboardData.central.history.labels,
+      targetLen
+    );
     var datasets = [];
-    var centralValues = padSeries((dashboardData.central.history && dashboardData.central.history[key]) || [], targetLen);
+    var centralSeries = buildSeries(
+      (dashboardData.central.history && dashboardData.central.history[key]) || [],
+      targetLen
+    );
 
     datasets.push({
       label: dashboardData.central.ident.cluster_name,
-      data: centralValues,
+      data: centralSeries.data,
       borderColor: palette[0],
       backgroundColor: palette[0] + '30',
       borderWidth: 3,
       tension: 0.35,
       fill: true,
-      pointRadius: 0
+      pointRadius: 0,
+      spanGaps: true,
+      segment: styleSegments(centralSeries.disconnected, palette[0], palette[0] + '30')
     });
 
     dashboardData.sensors.forEach(function(sensor, idx) {
-      var series = padSeries(sensor.history && sensor.history[key] ? sensor.history[key] : [], targetLen);
+      var series = buildSeries(
+        sensor.history && sensor.history[key] ? sensor.history[key] : [],
+        targetLen
+      );
       datasets.push({
         label: sensor.sensor_name || sensor.sensor_id,
-        data: series,
+        data: series.data,
         borderColor: sensorColor(idx + 1),
         backgroundColor: sensorColor(idx + 1),
         borderWidth: 2,
         tension: 0.35,
         fill: false,
-        pointRadius: 0
+        pointRadius: 0,
+        spanGaps: true,
+        segment: styleSegments(series.disconnected, sensorColor(idx + 1))
       });
     });
 
-    chartInstances[canvasId] = new Chart(canvas, {
-      type: 'line',
-      data: { labels: labels, datasets: datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            rtl: true,
-            callbacks: {
-              label: function(ctx) {
-                var l = ctx.dataset.label || '';
-                var v = ctx.parsed.y;
-                if (l) { l += ': '; }
-                l += v === null ? '-' : fmt(v, unit, key === 'gas_v' ? 2 : 1);
-                return l;
+    var instance = chartInstances[canvasId];
+    if (!instance) {
+      chartInstances[canvasId] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              rtl: true,
+              callbacks: {
+                label: function(ctx) {
+                  var l = ctx.dataset.label || '';
+                  var v = ctx.parsed.y;
+                  if (l) { l += ': '; }
+                  l += v === null ? '-' : fmt(v, unit, key === 'gas_v' ? 2 : 1);
+                  return l;
+                }
               }
             }
+          },
+          scales: {
+            x: { display: false },
+            y: { beginAtZero: false }
           }
-        },
-        scales: {
-          x: { display: false },
-          y: { beginAtZero: false }
         }
-      }
-    });
+      });
+      return;
+    }
+
+    instance.data.labels = labels;
+    instance.data.datasets = datasets;
+    instance.update('none');
   }
 
   function statusFromThreshold(value, threshold, forceDisconnected) {
@@ -310,30 +381,38 @@
   function renderSensorCards() {
     var grid = document.getElementById('sensors-grid');
     if (!grid) { return; }
-    var html = '';
-    metricConfig.forEach(function(metric, idx) {
-      var canvasId = 'chart-' + metric.key;
-      var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
-      var status = statusFromThreshold(centralVal, metric.threshold, false);
-      html += '' +
-        '<div class="sensor-box">' +
-          '<div class="sensor-box-header">' +
-            '<div class="sensor-box-title"><span style="font-size:1.3em">' + metric.icon + '</span><span>' + metric.name + '</span></div>' +
-            '<div class="sensor-box-value">' + fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1) + '</div>' +
-          '</div>' +
-          '<div class="chart-container"><canvas id="' + canvasId + '"></canvas></div>' +
-          '<div class="chart-labels">' +
-            '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + palette[0] + '; background:' + palette[0] + '30;"></div><span class="chart-label-text">' + (dashboardData.central.ident.cluster_name || 'مرکزی') + '</span></div>' +
-            dashboardData.sensors.map(function(s, sidx) { return '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + sensorColor(sidx + 1) + ';"></div><span class="chart-label-text">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</span></div>'; }).join('') +
-          '</div>' +
-        '</div>';
-    });
-    grid.innerHTML = html;
-    setTimeout(function() {
+    var layoutKey = (dashboardData.central.ident.cluster_name || '') + '::' + dashboardData.sensors.map(function(s) { return (s.sensor_id || '') + (s.sensor_name || ''); }).join('|');
+    if (sensorLayoutKey !== layoutKey) {
+      metricConfig.forEach(function(metric) { destroyChart('chart-' + metric.key); });
+      var html = '';
       metricConfig.forEach(function(metric) {
-        buildComparisonChart('chart-' + metric.key, metric.key, metric.unit);
+        var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
+        html += '' +
+          '<div class="sensor-box" data-metric="' + metric.key + '">' +
+            '<div class="sensor-box-header">' +
+              '<div class="sensor-box-title"><span style="font-size:1.3em">' + metric.icon + '</span><span>' + metric.name + '</span></div>' +
+              '<div class="sensor-box-value" data-metric-value="' + metric.key + '">' + fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1) + '</div>' +
+            '</div>' +
+            '<div class="chart-container"><canvas id="chart-' + metric.key + '"></canvas></div>' +
+            '<div class="chart-labels">' +
+              '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + palette[0] + '; background:' + palette[0] + '30;"></div><span class="chart-label-text">' + (dashboardData.central.ident.cluster_name || 'مرکزی') + '</span></div>' +
+              dashboardData.sensors.map(function(s, sidx) { return '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + sensorColor(sidx + 1) + ';"></div><span class="chart-label-text">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</span></div>'; }).join('') +
+            '</div>' +
+          '</div>';
       });
-    }, 30);
+      grid.innerHTML = html;
+      sensorLayoutKey = layoutKey;
+    } else {
+      metricConfig.forEach(function(metric) {
+        var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
+        var valueEl = grid.querySelector('[data-metric-value="' + metric.key + '"]');
+        if (valueEl) { valueEl.textContent = fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1); }
+      });
+    }
+
+    metricConfig.forEach(function(metric) {
+      buildComparisonChart('chart-' + metric.key, metric.key, metric.unit);
+    });
   }
 
   function renderDevicePills() {
@@ -467,6 +546,6 @@
   }
 
   renderAll();
-  setInterval(fetchDashboard, 8000);
+  setInterval(fetchDashboard, POLL_INTERVAL_MS);
 </script>
 {% endblock %}
