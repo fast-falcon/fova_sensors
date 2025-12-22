@@ -36,7 +36,7 @@ from panel_sensors_local import get_latest_env
 from panel_health import get_health_status
 from panel_audio_local import list_audio_segments, get_last_audio_segment
 from panel_net_common import parse_basic_auth_header
-from panel_db import init_db, get_sensor_history
+from panel_db import init_db
 
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -135,20 +135,12 @@ def _build_status_dict() -> Dict[str, Any]:
     else:
         audio_summary = {}
 
-    history = get_sensor_history(ident["box_id"], limit=12)
-
     return {
         "sensor_id": ident["box_id"],
         "sensor_name": ident["sensor_name"],
         "env": env,
         "health": health_dict,
         "audio_summary": audio_summary,
-        "history": history,
-        "thresholds": {
-            "temp": {"warning": 30.0, "danger": 40.0},
-            "hum": {"warning": 70.0, "danger": 85.0},
-            "gas_v": {"warning": 2.0, "danger": 3.5},
-        },
     }
 
 
@@ -166,11 +158,6 @@ def sensor_audio_list():
     ident = _get_sensor_identity()
     segments = list_audio_segments(ident["box_id"], limit=100)
     return render_template("sensor/audio_list.html", ident=ident, segments=segments)
-
-
-@app.route("/api/self_status", methods=["GET"])
-def api_self_status():
-    return jsonify(_build_status_dict())
 
 
 # ---------- API ROUTES (for central) ----------

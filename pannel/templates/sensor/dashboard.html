@@ -1,178 +1,88 @@
 {% extends "sensor/base_sensor.html" %}
 {% block title %}وضعیت سنسور - {{ ident.sensor_name }}{% endblock %}
-{% block base_styles %}
-    .panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 2px 12px rgba(15,23,42,0.08); margin-top: 16px; }
-    .panel-title { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-    .stat { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
-    .stat-label { color: #475569; font-size: 12px; }
-    .stat-value { font-size: 22px; font-weight: 800; color: #2563eb; margin-top: 6px; }
-    .chart-box { height: 210px; position: relative; }
-    .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-    .badge.ok { background: #d1fae5; color: #0f5132; }
-    .badge.warn { background: #fef3c7; color: #92400e; }
-    .badge.crit { background: #fee2e2; color: #b91c1c; }
-{% endblock %}
-{% block extra_head %}
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-{% endblock %}
 
 {% block content %}
-<div class="panel">
-  <div class="panel-title">وضعیت محیطی</div>
-  <div class="grid">
-    <div class="stat"><div class="stat-label">آخرین دما</div><div class="stat-value" id="temp-val">-</div></div>
-    <div class="stat"><div class="stat-label">آخرین رطوبت</div><div class="stat-value" id="hum-val">-</div></div>
-    <div class="stat"><div class="stat-label">آخرین گاز</div><div class="stat-value" id="gas-val">-</div></div>
-    <div class="stat"><div class="stat-label">آخرین نمونه</div><div class="stat-value" id="ts-val">-</div></div>
-  </div>
+<div class="card">
+  <h2>وضعیت محیطی</h2>
+  {% set env = status.env %}
+  <p style="font-size:13px; opacity:0.8;">
+    آخرین نمونه: {{ env.ts or "نامشخص" }}
+  </p>
+  <table>
+    <tr>
+      <th>پارامتر</th>
+      <th>مقدار</th>
+    </tr>
+    <tr>
+      <td>دما (°C)</td>
+      <td>{{ env.temp if env.temp is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>رطوبت (%)</td>
+      <td>{{ env.hum if env.hum is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>گاز (v)</td>
+      <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+    </tr>
+    <tr>
+      <td>Δگاز</td>
+      <td>
+        {{ env.gas_dv if env.gas_dv is not none else "-" }}
+        {% if env.gas_high %}
+          <span class="badge crit">HIGH</span>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
 </div>
 
-<div class="panel">
-  <div class="panel-title">روند داده‌ها</div>
-  <div class="grid">
-    <div class="stat"><div class="chart-box"><canvas id="chart-temp"></canvas></div></div>
-    <div class="stat"><div class="chart-box"><canvas id="chart-hum"></canvas></div></div>
-    <div class="stat"><div class="chart-box"><canvas id="chart-gas"></canvas></div></div>
-  </div>
+<div class="card">
+  <h2>سلامت سیستم</h2>
+  {% if status.health %}
+    {% set h = status.health %}
+    <p style="font-size:13px; opacity:0.8;">
+      آخرین بروزرسانی: {{ h.ts or "نامشخص" }}
+    </p>
+    <table>
+      <tr><th>پارامتر</th><th>مقدار</th></tr>
+      <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) }}%</td></tr>
+      <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) }}%</td></tr>
+      <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) }}%</td></tr>
+      <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) }}%</td></tr>
+    </table>
+    {% if h.last_issue %}
+      <p style="margin-top:8px; font-size:12px;">
+        آخرین مشکل ثبت‌شده:
+        <span class="badge warn">{{ h.last_issue }}</span>
+      </p>
+    {% endif %}
+  {% else %}
+    <p>هنوز اطلاعات سلامت ثبت نشده است.</p>
+  {% endif %}
 </div>
 
-<div class="panel">
-  <div class="panel-title">سلامت سیستم</div>
-  <div class="grid">
-    <div class="stat"><div class="stat-label">CPU</div><div class="stat-value" id="cpu-val">-</div></div>
-    <div class="stat"><div class="stat-label">RAM</div><div class="stat-value" id="ram-val">-</div></div>
-    <div class="stat"><div class="stat-label">Disk</div><div class="stat-value" id="disk-val">-</div></div>
-    <div class="stat"><div class="stat-label">Inode</div><div class="stat-value" id="inode-val">-</div></div>
-  </div>
+<div class="card">
+  <h2>خلاصه‌ی صدا</h2>
+  {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
+  {% if a %}
+    <p style="font-size:13px; opacity:0.8;">
+      آخرین segment ثبت‌شده:
+    </p>
+    <table>
+      <tr><th>زمان</th><th>مدت (ثانیه)</th><th>برچسب</th></tr>
+      <tr>
+        <td>{{ a.ts }}</td>
+        <td>{{ "%.1f"|format(a.duration_sec) }}</td>
+        <td>{{ a.label if a.label else "-" }}</td>
+      </tr>
+    </table>
+    <p style="font-size:12px; margin-top:8px;">
+      برای دیدن و شنیدن همه‌ی صداها به تب <a href="{{ url_for('sensor_audio_list') }}">صداها</a> برو.
+    </p>
+  {% else %}
+    <p>هنوز هیچ صدایی ثبت نشده است.</p>
+  {% endif %}
 </div>
-
-<div class="panel">
-  <div class="panel-title">خلاصه صدا</div>
-  <div class="grid">
-    <div class="stat"><div class="stat-label">زمان</div><div class="stat-value" id="audio-ts">-</div></div>
-    <div class="stat"><div class="stat-label">مدت</div><div class="stat-value" id="audio-duration">-</div></div>
-    <div class="stat"><div class="stat-label">برچسب</div><div class="stat-value" id="audio-label">-</div></div>
-  </div>
-</div>
-
-<script>
-  (function() {
-    var charts = {};
-    var initialState = {{ status|tojson }};
-
-    function destroy(id) {
-      if (charts[id]) {
-        charts[id].destroy();
-        charts[id] = null;
-      }
-    }
-
-    function formatVal(value, unit) {
-      if (value === null || value === undefined) { return '-'; }
-      if (typeof value === 'number') {
-        var fixed = unit === 'V' ? value.toFixed(2) : value.toFixed(1);
-        return fixed + (unit || '');
-      }
-      return value + (unit || '');
-    }
-
-    function renderCharts(history) {
-      var labels = (history || []).map(function(item) {
-        return item.ts ? item.ts.toString().slice(11, 19) : '-';
-      });
-      var temp = (history || []).map(function(item) { return item.temp; });
-      var hum = (history || []).map(function(item) { return item.hum; });
-      var gas = (history || []).map(function(item) { return item.gas_v; });
-
-      createLine('chart-temp', labels, temp, '#3b82f6');
-      createLine('chart-hum', labels, hum, '#22c55e');
-      createLine('chart-gas', labels, gas, '#f97316');
-    }
-
-    function createLine(id, labels, data, color) {
-      var ctx = document.getElementById(id);
-      if (!ctx) { return; }
-      destroy(id);
-      charts[id] = new Chart(ctx, {
-        type: 'line',
-        data: { labels: labels, datasets: [{
-          label: '',
-          data: data,
-          borderColor: color,
-          backgroundColor: color + '33',
-          tension: 0.35,
-          fill: false,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          borderWidth: 2
-        }]},
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { x: { display: false }, y: { beginAtZero: true } }
-        }
-      });
-    }
-
-    function updateUI(data) {
-      var env = data.env || {};
-      document.getElementById('temp-val').textContent = formatVal(env.temp, '°C');
-      document.getElementById('hum-val').textContent = formatVal(env.hum, '%');
-      document.getElementById('gas-val').textContent = formatVal(env.gas_v, 'V');
-      document.getElementById('ts-val').textContent = env.ts || '-';
-
-      var h = data.health || {};
-      document.getElementById('cpu-val').textContent = formatVal(h.cpu_percent, '%');
-      document.getElementById('ram-val').textContent = formatVal(h.mem_percent, '%');
-      document.getElementById('disk-val').textContent = formatVal(h.disk_percent, '%');
-      document.getElementById('inode-val').textContent = formatVal(h.inode_percent, '%');
-
-      var audio = (data.audio_summary && data.audio_summary.last_segment) || {};
-      document.getElementById('audio-ts').textContent = audio.ts || '-';
-      document.getElementById('audio-duration').textContent = audio.duration_sec ? audio.duration_sec.toFixed(1) + ' ثانیه' : '-';
-      document.getElementById('audio-label').textContent = audio.label || '-';
-
-      renderCharts(data.history || []);
-    }
-
-    function loadState() {
-      function onText(text) {
-        try {
-          var payload = JSON.parse(text);
-          updateUI(payload);
-        } catch (e) {
-          console.warn('sensor parse error', e);
-        }
-      }
-
-      if (window.fetch) {
-        fetch('/api/self_status', { cache: 'no-store' })
-          .then(function(resp) { return resp.text(); })
-          .then(onText)
-          .catch(function(err) { console.warn('sensor fetch error', err); });
-        return;
-      }
-
-      try {
-        var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState === 4 && xhr.status === 200) {
-            onText(xhr.responseText);
-          }
-        };
-        xhr.open('GET', '/api/self_status', true);
-        xhr.setRequestHeader('Cache-Control', 'no-cache');
-        xhr.send();
-      } catch (err) {
-        console.warn('sensor xhr error', err);
-      }
-    }
-
-    updateUI(initialState || {});
-    loadState();
-    setInterval(loadState, 8000);
-  })();
-</script>
 {% endblock %}
+
