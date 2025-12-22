@@ -1,314 +1,456 @@
 {% extends "central/base_central.html" %}
 {% block title %}وضعیت مرکزی - {{ central.ident.cluster_name }}{% endblock %}
 
-{% block extra_head %}
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <style>
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
-    .sensor-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; background: #ffffff; box-shadow: inset 0 0 0 1px #f8fafc; }
-    .sensor-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .sensor-name { font-weight: 700; font-size: 15px; color: #0f172a; }
-    .sensor-meta { color: #475569; font-size: 12px; }
-    .chart-holder { height: 180px; margin-top: 10px; }
-    .pill-success { background: rgba(16,185,129,0.14); color: #065f46; padding: 6px 10px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.35); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .dot-online { background: #10b981; }
-    .dot-offline { background: #94a3b8; }
-    .dot-unknown { background: #f59e0b; }
-  </style>
-{% endblock %}
-
 {% block content %}
 <div class="card">
-  <h3>سنسور محیطی مرکزی</h3>
-  <div class="kpi-grid">
-    <div class="kpi">
-      <div class="label">دما (°C)</div>
-      <div class="value" id="central-temp">-</div>
-      <div class="muted" id="central-temp-ts">--:--</div>
+  <div class="flex-row">
+    <div class="flex-col">
+      <h3>سنسور محیطی مرکزی</h3>
+      {% set env = central.env %}
+      <p style="font-size:12px; opacity:0.8;">
+        آخرین نمونه: <span id="central-last-ts">{{ env.ts or "نامشخص" }}</span>
+      </p>
+      <table>
+        <tr><th>پارامتر</th><th>مقدار</th></tr>
+        <tr><td>دما (°C)</td><td id="central-temp">{{ env.temp if env.temp is not none else "-" }}</td></tr>
+        <tr><td>رطوبت (%)</td><td id="central-hum">{{ env.hum if env.hum is not none else "-" }}</td></tr>
+        <tr>
+          <td>گاز (v)</td>
+          <td id="central-gas-v">{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+        </tr>
+        <tr>
+          <td>Δگاز</td>
+          <td>
+            <span id="central-gas-dv">{{ env.gas_dv if env.gas_dv is not none else "-" }}</span>
+            <span id="central-gas-high">{% if env.gas_high %}<span class="badge alert">HIGH</span>{% endif %}</span>
+          </td>
+        </tr>
+      </table>
     </div>
-    <div class="kpi">
-      <div class="label">رطوبت (%)</div>
-      <div class="value" id="central-hum">-</div>
-      <div class="muted" id="central-hum-ts">--:--</div>
+
+    <div class="flex-col">
+      <h3>سلامت باکس مرکزی</h3>
+      {% if central.health %}
+        {% set h = central.health %}
+        <p style="font-size:12px; opacity:0.8;">
+          آخرین بروزرسانی: <span id="health-ts">{{ h.ts or "نامشخص" }}</span>
+        </p>
+        <table>
+          <tr><th>پارامتر</th><th>مقدار</th></tr>
+          <tr><td>CPU</td><td id="health-cpu">{{ "%.1f"|format(h.cpu_percent) + '%' if h.cpu_percent is not none else '-' }}</td></tr>
+          <tr><td>RAM</td><td id="health-ram">{{ "%.1f"|format(h.mem_percent) + '%' if h.mem_percent is not none else '-' }}</td></tr>
+          <tr><td>Disk</td><td id="health-disk">{{ "%.1f"|format(h.disk_percent) + '%' if h.disk_percent is not none else '-' }}</td></tr>
+          <tr><td>Inode</td><td id="health-inode">{{ "%.1f"|format(h.inode_percent) + '%' if h.inode_percent is not none else '-' }}</td></tr>
+        </table>
+        {% if h.last_issue %}
+          <p style="margin-top:8px; font-size:12px;">
+            آخرین مشکل:
+            <span class="badge warn" id="health-issue">{{ h.last_issue }}</span>
+          </p>
+        {% endif %}
+      {% else %}
+        <p>هنوز اطلاعات سلامت ثبت نشده است.</p>
+      {% endif %}
     </div>
-    <div class="kpi">
-      <div class="label">گاز (V)</div>
-      <div class="value" id="central-gas">-</div>
-      <div class="muted" id="central-gas-ts">--:--</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Δ گاز</div>
-      <div class="value" id="central-dv">-</div>
-      <div class="muted" id="central-dv-ts">--:--</div>
-    </div>
-    <div class="kpi">
-      <div class="label">آخرین صدا</div>
-      <div class="value" id="central-audio">-</div>
-      <div class="muted" id="central-audio-label">-</div>
+
+    <div class="flex-col">
+      <h3>خلاصه‌ی صدا</h3>
+      {% set a = central.audio_summary.last_segment if central.audio_summary and central.audio_summary.last_segment is defined else None %}
+      {% if a %}
+        <table>
+          <tr><th>زمان</th><th>مدت</th><th>برچسب</th></tr>
+          <tr>
+            <td id="audio-ts">{{ a.ts }}</td>
+            <td id="audio-duration">{{ "%.1f"|format(a.duration_sec) }} ثانیه</td>
+            <td id="audio-label">{{ a.label if a.label else "-" }}</td>
+          </tr>
+        </table>
+        <p style="font-size:12px; margin-top:8px;">
+          برای دیدن و شنیدن همه‌ی صداها به تب <a href="{{ url_for('central_audio') }}">صداها</a> برو.
+        </p>
+      {% else %}
+        <p>هنوز هیچ صدایی ثبت نشده است.</p>
+      {% endif %}
+
+      <h4 style="margin-top:16px;">آخرین صداهای ثبت شده (مرکزی و سنسورها)</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>نام</th>
+            <th>ID</th>
+            <th>وضعیت</th>
+            <th>زمان ضبط</th>
+            <th>مدت (ثانیه)</th>
+            <th>برچسب</th>
+          </tr>
+        </thead>
+        <tbody id="audio-body">
+          {% set audio_row = central.audio_summary.last_segment if central.audio_summary and central.audio_summary.last_segment is defined else None %}
+          <tr>
+            <td>{{ central.ident.cluster_name }}</td>
+            <td>{{ central.ident.box_id }}</td>
+            <td><span class="badge normal">مرکزی</span></td>
+            <td>{{ audio_row.ts if audio_row else '-' }}</td>
+            <td>{{ "%.1f"|format(audio_row.duration_sec) if audio_row and audio_row.duration_sec is not none else '-' }}</td>
+            <td>{{ audio_row.label if audio_row else '-' }}</td>
+          </tr>
+          {% for s in sensors %}
+            {% set last = s.audio_summary.last_segment if s.audio_summary and s.audio_summary.last_segment is defined else None %}
+            <tr>
+              <td>{{ s.sensor_name }}</td>
+              <td>{{ s.sensor_id }}</td>
+              <td>
+                {% if s.state == "online" %}
+                  <span class="badge online">آنلاین</span>
+                {% elif s.state == "offline" %}
+                  <span class="badge offline">آفلاین</span>
+                {% else %}
+                  <span class="badge unknown">نامشخص</span>
+                {% endif %}
+              </td>
+              <td>{{ last.ts if last else '-' }}</td>
+              <td>{{ "%.1f"|format(last.duration_sec) if last and last.duration_sec is not none else '-' }}</td>
+              <td>{{ last.label if last else '-' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
 
 <div class="card">
-  <h3>مقایسه زنده سنسورها</h3>
-  <div class="chart-grid">
-    <div class="chart-box">
-      <div class="chart-title">دما</div>
-      <div style="height:220px"><canvas id="chart-compare-temp"></canvas></div>
-    </div>
-    <div class="chart-box">
-      <div class="chart-title">رطوبت</div>
-      <div style="height:220px"><canvas id="chart-compare-hum"></canvas></div>
-    </div>
-    <div class="chart-box">
-      <div class="chart-title">گاز</div>
-      <div style="height:220px"><canvas id="chart-compare-gas"></canvas></div>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <h3>باکس‌های سنسور</h3>
-  <div id="sensor-grid" class="grid"></div>
+  <h3>وضعیت باکس‌های سنسور</h3>
+  {% if sensors %}
+    <table>
+      <tr>
+        <th>نام سنسور</th>
+        <th>ID</th>
+        <th>IP</th>
+        <th>آخرین دیده شدن</th>
+        <th>دما</th>
+        <th>رطوبت</th>
+        <th>گاز</th>
+        <th>وضعیت</th>
+        <th>لینک پنل سنسور</th>
+      </tr>
+      <tbody id="sensors-body">
+        {% for s in sensors %}
+          {% set env = s.env or {} %}
+          <tr>
+            <td>{{ s.sensor_name }}</td>
+            <td>{{ s.sensor_id }}</td>
+            <td>{{ s.ip or "-" }}</td>
+            <td>{{ s.last_seen }}</td>
+            <td>{{ env.temp if env.temp is not none else "-" }}</td>
+            <td>{{ env.hum if env.hum is not none else "-" }}</td>
+            <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
+            <td>
+              {% if s.state == "online" %}
+                <span class="badge online">آنلاین</span>
+              {% elif s.state == "offline" %}
+                <span class="badge offline">آفلاین</span>
+              {% else %}
+                <span class="badge unknown">نامشخص</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.ip %}
+                <a href="http://{{ s.ip }}:8080/" target="_blank">باز کردن پنل</a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>هنوز هیچ باکس سنسوری به این باکس متصل نشده است.</p>
+  {% endif %}
 </div>
 
 <script>
-  var chartInstances = {};
-  var dashboardData = { central: {{ central|tojson }}, sensors: {{ sensors|tojson }} };
-
-  function formatNumber(value, decimals) {
-    if (value === null || value === undefined) { return '-'; }
-    var d = typeof decimals === 'number' ? decimals : (Math.abs(value) < 1 ? 2 : 1);
-    var num = Number(value);
-    if (isNaN(num)) { return '-'; }
-    return num.toFixed(d);
+  function formatValue(val, suffix) {
+    if (typeof suffix === 'undefined') {
+      suffix = '';
+    }
+    if (val === null || val === undefined) {
+      return '-';
+    }
+    if (typeof val === 'number') {
+      return val.toFixed(1) + suffix;
+    }
+    return val + suffix;
   }
 
-  function sensorColor(idx) {
-    var palette = ['#0ea5e9', '#8b5cf6', '#f97316', '#10b981', '#f43f5e', '#06b6d4', '#a855f7'];
-    return palette[idx % palette.length];
-  }
-
-  function destroyChart(id) {
-    if (chartInstances[id]) {
-      chartInstances[id].destroy();
-      chartInstances[id] = null;
+  function setText(id, value) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.textContent = value;
     }
   }
 
-  function padSeries(values, target) {
-    var arr = values ? values.slice(-target) : [];
-    while (arr.length < target) { arr.unshift(null); }
-    return arr;
-  }
-
-  function buildComparisonChart(canvasId, key, label) {
-    var canvas = document.getElementById(canvasId);
-    if (!canvas) { return; }
-    destroyChart(canvasId);
-
-    var labels = dashboardData.central.history.labels || [];
-    if (labels.length === 0) { labels = []; }
-
-    var datasets = [];
-    var centralColor = '#2563eb';
-    var centralValues = padSeries(dashboardData.central.history[key] || [], labels.length || 15);
-    if (labels.length === 0) {
-      var maxLen = centralValues.length > 0 ? centralValues.length : 15;
-      labels = [];
-      for (var i = 0; i < maxLen; i++) { labels.push(''); }
+  function setHtml(id, value) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.innerHTML = value;
     }
-
-    datasets.push({
-      label: dashboardData.central.ident.cluster_name,
-      data: centralValues,
-      borderColor: centralColor,
-      backgroundColor: 'rgba(37,99,235,0.18)',
-      fill: true,
-      tension: 0.35,
-      borderWidth: 3,
-      pointRadius: 0
-    });
-
-    for (var i = 0; i < dashboardData.sensors.length; i++) {
-      var sensor = dashboardData.sensors[i];
-      var color = sensorColor(i);
-      var historyValues = padSeries(sensor.history && sensor.history[key] ? sensor.history[key] : [], labels.length);
-      datasets.push({
-        label: sensor.sensor_name || sensor.sensor_id,
-        data: historyValues,
-        borderColor: color,
-        backgroundColor: color,
-        borderWidth: 2,
-        fill: false,
-        tension: 0.35,
-        pointRadius: 0
-      });
-    }
-
-    chartInstances[canvasId] = new Chart(canvas, {
-      type: 'line',
-      data: { labels: labels, datasets: datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            rtl: true,
-            callbacks: {
-              label: function(context) {
-                var l = context.dataset.label || '';
-                var v = context.parsed.y;
-                if (l) { l += ': '; }
-                l += v === null ? '-' : formatNumber(v, key === 'gas_v' ? 2 : 1);
-                if (key === 'gas_v') { l += ' V'; }
-                else if (key === 'temp') { l += ' °C'; }
-                else if (key === 'hum') { l += ' %'; }
-                return l;
-              }
-            }
-          }
-        },
-        scales: {
-          x: { display: false },
-          y: { beginAtZero: false }
-        }
-      }
-    });
   }
 
-  function createSensorCard(sensor, idx) {
-    var color = sensorColor(idx);
-    var grid = document.getElementById('sensor-grid');
-    if (!grid) { return; }
-    var cardId = 'sensor-chart-' + idx;
-    var state = sensor.state || 'unknown';
-    var badgeClass = 'offline';
-    if (state === 'online') { badgeClass = 'online'; }
-    else if (state === 'unknown') { badgeClass = 'warn'; }
+  function renderCentralAudio(audioSummary) {
+    var audio = (audioSummary && audioSummary.last_segment) || null;
+    var ts = '-';
+    var dur = '-';
+    var label = '-';
 
-    var html = '' +
-      '<div class="sensor-card">' +
-        '<div class="sensor-head">' +
-          '<div>' +
-            '<div class="sensor-name" style="color:' + color + '">' + (sensor.sensor_name || sensor.sensor_id || '-') + '</div>' +
-            '<div class="sensor-meta">IP: ' + (sensor.ip || '-') + '</div>' +
-          '</div>' +
-          '<span class="badge ' + badgeClass + '">' + (state === 'online' ? 'آنلاین' : state === 'offline' ? 'آفلاین' : 'نامشخص') + '</span>' +
-        '</div>' +
-        '<div class="muted">آخرین دیده شدن: ' + (sensor.last_seen || '-') + '</div>' +
-        '<div class="kpi-grid" style="margin-top:10px;">' +
-          '<div class="kpi"><div class="label">دما</div><div class="value">' + formatNumber(sensor.env && sensor.env.temp) + '</div></div>' +
-          '<div class="kpi"><div class="label">رطوبت</div><div class="value">' + formatNumber(sensor.env && sensor.env.hum) + '</div></div>' +
-          '<div class="kpi"><div class="label">گاز</div><div class="value">' + formatNumber(sensor.env && sensor.env.gas_v, 2) + '</div></div>' +
-        '</div>' +
-        '<div class="chart-holder"><canvas id="' + cardId + '"></canvas></div>' +
-      '</div>';
-    grid.innerHTML += html;
-  }
-
-  function renderSensors() {
-    var grid = document.getElementById('sensor-grid');
-    if (!grid) { return; }
-    grid.innerHTML = '';
-    for (var i = 0; i < dashboardData.sensors.length; i++) {
-      createSensorCard(dashboardData.sensors[i], i);
-    }
-    setTimeout(function() {
-      for (var i = 0; i < dashboardData.sensors.length; i++) {
-        var sensor = dashboardData.sensors[i];
-        var canvasId = 'sensor-chart-' + i;
-        var labels = (sensor.history && sensor.history.labels) || [];
-        var values = (sensor.history && sensor.history.temp) || [];
-        if (labels.length === 0) {
-          labels = values.map(function() { return ''; });
-        }
-        destroyChart(canvasId);
-        var ctx = document.getElementById(canvasId);
-        if (!ctx) { continue; }
-        chartInstances[canvasId] = new Chart(ctx, {
-          type: 'line',
-          data: { labels: labels, datasets: [{
-            label: sensor.sensor_name || sensor.sensor_id,
-            data: values,
-            borderColor: sensorColor(i),
-            backgroundColor: sensorColor(i),
-            fill: false,
-            borderWidth: 3,
-            tension: 0.35,
-            pointRadius: 0
-          }] },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { x: { display: false }, y: { beginAtZero: false } }
-          }
-        });
-      }
-    }, 50);
-  }
-
-  function renderCentralInfo() {
-    var env = dashboardData.central.env || {};
-    document.getElementById('central-temp').textContent = formatNumber(env.temp) + '°';
-    document.getElementById('central-hum').textContent = formatNumber(env.hum) + '%';
-    document.getElementById('central-gas').textContent = formatNumber(env.gas_v, 2) + 'V';
-    document.getElementById('central-dv').textContent = formatNumber(env.gas_dv, 2);
-    document.getElementById('central-temp-ts').textContent = env.ts || '--:--';
-    document.getElementById('central-hum-ts').textContent = env.ts || '--:--';
-    document.getElementById('central-gas-ts').textContent = env.ts || '--:--';
-    document.getElementById('central-dv-ts').textContent = env.ts || '--:--';
-
-    var audio = (dashboardData.central.audio_summary && dashboardData.central.audio_summary.last_segment) || null;
-    var audioText = '-';
     if (audio) {
-      audioText = (audio.ts || '') + ' | ' + formatNumber(audio.duration_sec) + 's';
-      document.getElementById('central-audio-label').textContent = audio.label || '-';
+      ts = audio.ts || '-';
+      dur = typeof audio.duration_sec === 'number' ? audio.duration_sec.toFixed(1) + ' ثانیه' : '-';
+      label = audio.label || '-';
     }
-    document.getElementById('central-audio').textContent = audioText;
+
+    setText('audio-ts', ts);
+    setText('audio-duration', dur);
+    setText('audio-label', label);
   }
 
-  function renderAllCharts() {
-    buildComparisonChart('chart-compare-temp', 'temp', 'دما');
-    buildComparisonChart('chart-compare-hum', 'hum', 'رطوبت');
-    buildComparisonChart('chart-compare-gas', 'gas_v', 'گاز');
-    renderSensors();
+  function renderCentral(data) {
+    var env = data.env || {};
+    var health = data.health || {};
+    setText('central-last-ts', env.ts || 'نامشخص');
+    setText('central-temp', formatValue(env.temp));
+    setText('central-hum', formatValue(env.hum));
+    setText('central-gas-v', formatValue(env.gas_v));
+    setText('central-gas-dv', formatValue(env.gas_dv));
+    var gasHigh = env.gas_high ? '<span class="badge alert">HIGH</span>' : '';
+    setHtml('central-gas-high', gasHigh);
+
+    setText('health-ts', health.ts || 'نامشخص');
+    setText('health-cpu', formatValue(health.cpu_percent, '%'));
+    setText('health-ram', formatValue(health.mem_percent, '%'));
+    setText('health-disk', formatValue(health.disk_percent, '%'));
+    setText('health-inode', formatValue(health.inode_percent, '%'));
+
+    var issueElem = document.getElementById('health-issue');
+    if (issueElem) {
+      issueElem.textContent = health.last_issue || '';
+      issueElem.style.display = health.last_issue ? 'inline-block' : 'none';
+    }
+
+    renderCentralAudio(data.audio_summary || {});
   }
 
-  function updateDashboard(payload) {
-    dashboardData.central = payload.central || dashboardData.central;
-    dashboardData.sensors = payload.sensors || dashboardData.sensors;
-    renderCentralInfo();
-    renderAllCharts();
+  function safeVal(value) {
+    if (value === null || value === undefined) {
+      return '-';
+    }
+    return value;
   }
 
-  function fetchDashboard() {
-    if (!window.fetch) {
-      try {
-        var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState === 4 && xhr.status === 200) {
-            updateDashboard(JSON.parse(xhr.responseText));
-          }
-        };
-        xhr.open('GET', '/api/dashboard_state', true);
-        xhr.setRequestHeader('Cache-Control', 'no-cache');
-        xhr.send();
-      } catch (e) { console.warn('xhr failed', e); }
+  function renderSensors(sensors) {
+    var body = document.getElementById('sensors-body');
+    if (!body || !Array.isArray(sensors)) {
       return;
     }
-    fetch('/api/dashboard_state', { cache: 'no-store' })
-      .then(function(r) { return r.json(); })
-      .then(updateDashboard)
-      .catch(function(err) { console.warn('dashboard fetch', err); });
+    var rows = sensors.map(function (s) {
+      var env = s.env || {};
+      var stateBadge;
+      if (s.state === 'online') {
+        stateBadge = '<span class="badge online">آنلاین</span>';
+      } else if (s.state === 'offline') {
+        stateBadge = '<span class="badge offline">آفلاین</span>';
+      } else {
+        stateBadge = '<span class="badge unknown">نامشخص</span>';
+      }
+      var link = s.ip ? '<a href="http://' + s.ip + ':8080/" target="_blank">باز کردن پنل</a>' : '-';
+      return (
+        '<tr>' +
+        '<td>' + (s.sensor_name || '-') + '</td>' +
+        '<td>' + (s.sensor_id || '-') + '</td>' +
+        '<td>' + (s.ip || '-') + '</td>' +
+        '<td>' + (s.last_seen || '-') + '</td>' +
+        '<td>' + safeVal(env.temp) + '</td>' +
+        '<td>' + safeVal(env.hum) + '</td>' +
+        '<td>' + safeVal(env.gas_v) + '</td>' +
+        '<td>' + stateBadge + '</td>' +
+        '<td>' + link + '</td>' +
+        '</tr>'
+      );
+    });
+    body.innerHTML = rows.join('');
   }
 
-  renderCentralInfo();
-  renderAllCharts();
-  setInterval(fetchDashboard, 8000);
+  function renderAudioList(centralRow, sensorsRows) {
+    var body = document.getElementById('audio-body');
+    if (!body) {
+      return;
+    }
+
+    var rows = [];
+
+    function renderAudioRow(name, id, state, summary) {
+      var badge;
+      if (state === 'online') {
+        badge = '<span class="badge online">آنلاین</span>';
+      } else if (state === 'offline') {
+        badge = '<span class="badge offline">آفلاین</span>';
+      } else {
+        badge = '<span class="badge unknown">نامشخص</span>';
+      }
+      var last = (summary && summary.last_segment) || {};
+      var dur = typeof last.duration_sec === 'number' ? last.duration_sec.toFixed(1) : '-';
+      rows.push(
+        '<tr>' +
+          '<td>' + (name || '-') + '</td>' +
+          '<td>' + (id || '-') + '</td>' +
+          '<td>' + badge + '</td>' +
+          '<td>' + (last.ts || '-') + '</td>' +
+          '<td>' + dur + '</td>' +
+          '<td>' + (last.label || '-') + '</td>' +
+        '</tr>'
+      );
+    }
+
+    if (centralRow) {
+      renderAudioRow(
+        centralRow.name || '-',
+        centralRow.sensor_id || '-',
+        centralRow.state || 'online',
+        centralRow.audio_summary || {}
+      );
+    }
+
+    (sensorsRows || []).forEach(function (s) {
+      renderAudioRow(s.sensor_name, s.sensor_id, s.state, s.audio_summary || {});
+    });
+
+    body.innerHTML = rows.join('');
+  }
+
+  var lastDashboard = null;
+
+  function fetchDashboard() {
+    function handleResponse(text) {
+      try {
+        var payload = JSON.parse(text);
+        lastDashboard = payload;
+        if (payload.central) {
+          renderCentral(payload.central);
+        }
+        if (payload.sensors) {
+          renderSensors(payload.sensors);
+        }
+        renderAudioList(
+          {
+            name: (payload.central && payload.central.ident && payload.central.ident.cluster_name) || '-',
+            sensor_id: (payload.central && payload.central.ident && payload.central.ident.box_id) || '-',
+            state: 'online',
+            audio_summary: (payload.central && payload.central.audio_summary) || {},
+          },
+          (payload.sensors || []).map(function (s) {
+            return {
+              sensor_name: s.sensor_name,
+              sensor_id: s.sensor_id,
+              state: s.state,
+              audio_summary: s.audio_summary || {},
+            };
+          })
+        );
+        fetchAudioState();
+      } catch (e) {
+        alert('dashboard json parse error: ' + (e && e.message ? e.message : e));
+        console.warn('dashboard json parse error', e);
+      }
+    }
+
+    function handleError(prefix, err) {
+      alert(prefix + ': ' + (err && err.message ? err.message : err));
+      console.warn(prefix, err);
+    }
+
+    if (window.fetch) {
+      fetch('/api/dashboard_state', { cache: 'no-store' })
+        .then(function (r) { return r.text(); })
+        .then(handleResponse)
+        .catch(function (err) { handleError('dashboard fetch error', err); });
+      return;
+    }
+
+    // fallback برای مرورگر قدیمی
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            handleResponse(xhr.responseText);
+          } else {
+            handleError('dashboard xhr error', 'HTTP ' + xhr.status);
+          }
+        }
+      };
+      xhr.open('GET', '/api/dashboard_state', true);
+      xhr.setRequestHeader('Cache-Control', 'no-cache');
+      xhr.send();
+    } catch (err) {
+      handleError('dashboard xhr error', err);
+    }
+  }
+
+  function fetchAudioState() {
+    if (!window.fetch) {
+      return;
+    }
+    fetch('/api/audio_state', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (audioState) {
+        var centralName = '-';
+        var dashboardSensors = [];
+
+        if (lastDashboard && lastDashboard.central && lastDashboard.central.ident) {
+          centralName = lastDashboard.central.ident.cluster_name || '-';
+        }
+        if (lastDashboard && Array.isArray(lastDashboard.sensors)) {
+          dashboardSensors = lastDashboard.sensors;
+        }
+
+        var centralRow = {
+          name: centralName,
+          sensor_id: (audioState.central && audioState.central.sensor_id) || '-',
+          state: 'online',
+          audio_summary: (audioState.central && audioState.central.audio_summary) || {},
+        };
+
+        var sensorMap = {};
+        dashboardSensors.forEach(function (s) {
+          sensorMap[s.sensor_id] = s;
+        });
+
+        var sensorsRows = (audioState.sensors || []).map(function (s) {
+          var dashInfo = sensorMap[s.sensor_id] || {};
+          return {
+            sensor_name: dashInfo.sensor_name || s.sensor_id || '-',
+            sensor_id: s.sensor_id,
+            state: dashInfo.state || s.state || 'unknown',
+            audio_summary: s.audio_summary || {},
+          };
+        });
+
+        renderCentralAudio(centralRow.audio_summary);
+        renderAudioList(centralRow, sensorsRows);
+      })
+      .catch(function (err) {
+        console.warn('audio_state fetch error', err);
+      });
+  }
+
+  fetchDashboard();
+  setInterval(fetchDashboard, 10000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) {
+      fetchDashboard();
+    }
+  });
 </script>
 {% endblock %}
+
