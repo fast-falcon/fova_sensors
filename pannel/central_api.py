@@ -161,12 +161,12 @@ def _format_short_ts(ts_iso: Optional[str]) -> str:
     try:
         clean = ts_iso.replace("Z", "+00:00")
         dt = datetime.fromisoformat(clean)
-        return dt.strftime("%H:%M")
+        return dt.strftime("%H:%M:%S")
     except Exception:
         return ts_iso
 
 
-def _build_env_history(sensor_id: str, limit: int = 30) -> Dict[str, Any]:
+def _build_env_history(sensor_id: str, limit: int = 90) -> Dict[str, Any]:
     samples = get_recent_sensor_samples(sensor_id, limit)
     labels: List[str] = []
     temp: List[Optional[float]] = []
@@ -538,4 +538,3 @@ if __name__ == "__main__":
     print("=== central_api test ===")
     print("Flask پنل مرکزی روی پورت", DEFAULT_HTTP_PORT, "بالا می‌آید. Ctrl+C برای خروج.")
     run_flask()
-
