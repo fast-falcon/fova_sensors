@@ -38,7 +38,7 @@ from panel_crypto import ensure_box_keypair, load_box_public_key, decrypt_with_p
 from panel_sensors_local import get_latest_env
 from panel_audio_local import get_last_audio_segment, list_audio_segments
 from panel_health import get_health_status
-from panel_db import init_db, DB_PATH, get_latest_sensor_sample
+from panel_db import init_db, DB_PATH, get_latest_sensor_sample, get_recent_sensor_samples
 from panel_net_common import parse_basic_auth_header
 from central_sensors_link import (
     update_sensor_state_from_payload,
@@ -155,6 +155,52 @@ def _normalize_health(h: Optional["HealthStatus"]) -> Optional[Dict[str, Any]]:
     }
 
 
+def _format_short_ts(ts_iso: Optional[str]) -> str:
+    if not ts_iso:
+        return "--:--"
+    try:
+        clean = ts_iso.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(clean)
+        return dt.strftime("%H:%M")
+    except Exception:
+        return ts_iso
+
+
+def _build_env_history(sensor_id: str, limit: int = 30) -> Dict[str, Any]:
+    samples = get_recent_sensor_samples(sensor_id, limit)
+    labels: List[str] = []
+    temp: List[Optional[float]] = []
+    hum: List[Optional[float]] = []
+    gas_v: List[Optional[float]] = []
+    gas_dv: List[Optional[float]] = []
+
+    for ts_iso, data in samples:
+        labels.append(_format_short_ts(ts_iso))
+
+        def _val(key: str) -> Optional[float]:
+            try:
+                val = data.get(key)
+            except Exception:
+                return None
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                return None
+
+        temp.append(_val("temp"))
+        hum.append(_val("hum"))
+        gas_v.append(_val("gas_v"))
+        gas_dv.append(_val("gas_dv"))
+
+    return {
+        "labels": labels,
+        "temp": temp,
+        "hum": hum,
+        "gas_v": gas_v,
+        "gas_dv": gas_dv,
+    }
+
+
 def _build_central_status() -> Dict[str, Any]:
     ident = _get_central_identity()
     # env
@@ -192,6 +238,7 @@ def _build_central_status() -> Dict[str, Any]:
         "env": env,
         "health": health,
         "audio_summary": audio_summary,
+        "history": _build_env_history(ident["box_id"]),
     }
 
 
@@ -213,6 +260,7 @@ def _build_sensor_cards() -> List[Dict[str, Any]]:
                 "audio_summary": audio_summary,
                 "health": _normalize_health(getattr(st, "health", None)),
                 "state": state_label,
+                "history": _build_env_history(st.sensor_id),
             }
         )
 
