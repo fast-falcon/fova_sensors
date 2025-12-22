@@ -62,8 +62,8 @@ def run_sensor():
     print("[sensor_role] monitor_loop started")
 
     # شروع خواندن سنسورها
-    # interval را فعلاً ثابت می‌گذاریم (مثلا ۵ ثانیه). می‌توانی بعداً از config یا server تنظیم کنی.
-    start_sensor_reader(sensor_id=box_id, interval_sec=5.0)
+    # interval را فعلاً ثابت می‌گذاریم (مثلا ۲ ثانیه). می‌توانی بعداً از config یا server تنظیم کنی.
+    start_sensor_reader(sensor_id=box_id, interval_sec=2.0)
     print("[sensor_role] sensor_reader started")
 
     # شروع ضبط صدا (segmentهای ۳۰ ثانیه‌ای)
@@ -90,4 +90,3 @@ if __name__ == "__main__":
     print("این تست فرض می‌کند panel_config.json با role='sensor' تنظیم شده باشد.")
     print("اگر نیست، ویزارد یا دستی آن را تنظیم کن.")
     run_sensor()
-

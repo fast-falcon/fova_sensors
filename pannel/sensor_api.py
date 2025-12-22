@@ -7,6 +7,7 @@ Flask پنل باکس سنسور + API برای استفاده‌ی باکس م�
 UI (بدون احراز هویت، برای کاربر محلی):
   - GET /            → داشبورد سنسور
   - GET /audio       → لیست صداهای ضبط‌شده و امکان پخش
+  - GET /api/dashboard_state → snapshot برای داشبورد (بدون auth)
 
 API برای باکس مرکزی (با Basic Auth):
   - GET /api/status
@@ -184,6 +185,13 @@ def sensor_dashboard():
     ident = _get_sensor_identity()
     status = _build_status_dict()
     return render_template("sensor/dashboard.html", ident=ident, status=status)
+
+
+@app.route("/api/dashboard_state", methods=["GET"])
+def api_dashboard_state():
+    """Snapshot برای داشبورد محلی (بدون BasicAuth)."""
+    init_db()
+    return jsonify(_build_status_dict())
 
 
 @app.route("/audio")
