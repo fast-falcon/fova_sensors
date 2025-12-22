@@ -4,91 +4,198 @@
 {% block extra_head %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
-    .sensor-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; background: #ffffff; box-shadow: inset 0 0 0 1px #f8fafc; }
-    .sensor-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .sensor-name { font-weight: 700; font-size: 15px; color: #0f172a; }
-    .sensor-meta { color: #475569; font-size: 12px; }
-    .chart-holder { height: 180px; margin-top: 10px; }
-    .pill-success { background: rgba(16,185,129,0.14); color: #065f46; padding: 6px 10px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.35); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .dot-online { background: #10b981; }
-    .dot-offline { background: #94a3b8; }
-    .dot-unknown { background: #f59e0b; }
+    body { background: #f8fafc; }
+    .container {
+      max-width: 1800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 16px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 22px;
+      color: #3b82f6;
+    }
+    .header .muted { color: #475569; margin-top: 6px; }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .panel {
+      background: white;
+      border-radius: 15px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid #e2e8f0;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .panel-icon { font-size: 1.4em; }
+    .panel-title { font-size: 1.2em; font-weight: 700; color: #0f172a; flex: 1; }
+    .panel-type {
+      background: #dbeafe;
+      color: #1d4ed8;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 0.85em;
+      font-weight: 600;
+    }
+    .section-title {
+      font-size: 1.05em;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sensors-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 12px;
+    }
+    .sensor-box {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 14px;
+      border: 2px solid #e2e8f0;
+    }
+    .sensor-box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .sensor-box-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #0f172a; }
+    .sensor-box-value { font-size: 22px; font-weight: 800; color: #3b82f6; }
+    .chart-container { position: relative; height: 220px; margin-top: 10px; }
+    .chart-labels { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .chart-label { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: #e2e8f0; font-size: 12px; color: #334155; }
+    .chart-label-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid; }
+    .chart-label-text { font-weight: 600; color: #334155; }
+    .system-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
+    .system-card { background: #f8fafc; border-radius: 12px; padding: 14px; text-align: center; border: 2px solid; }
+    .system-card.normal { border-color: #10b981; }
+    .system-card.warning { border-color: #f59e0b; }
+    .system-card.danger { border-color: #ef4444; }
+    .circular-chart { width: 100px; height: 100px; margin: 8px auto; position: relative; }
+    .circular-chart svg { transform: rotate(-90deg); }
+    .circular-chart circle { fill: none; stroke-width: 8; stroke-linecap: round; }
+    .circular-chart .bg-circle { stroke: #e2e8f0; }
+    .circular-chart .progress-circle { stroke-dasharray: 251; stroke-dashoffset: 251; transition: stroke-dashoffset 0.3s ease; }
+    .circular-chart-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+    .circular-value { font-size: 1.5em; font-weight: 700; }
+    .circular-label { font-size: 0.75em; color: #64748b; }
+    .system-card.normal .progress-circle { stroke: #10b981; }
+    .system-card.warning .progress-circle { stroke: #f59e0b; }
+    .system-card.danger .progress-circle { stroke: #ef4444; }
+    .system-card.normal .circular-value { color: #10b981; }
+    .system-card.warning .circular-value { color: #f59e0b; }
+    .system-card.danger .circular-value { color: #ef4444; }
+    .device-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .device-pill { background: white; border: 2px solid; border-radius: 20px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .device-pill-name { font-weight: 700; }
+    .comparison-section { margin-top: 18px; }
+    .error-history { background: #f8fafc; border-radius: 12px; padding: 12px; max-height: 220px; overflow-y: auto; }
+    .error-item { display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 8px; background: white; border-radius: 10px; border-right: 3px solid; font-size: 13px; }
+    .error-item.normal { border-color: #10b981; }
+    .error-item.danger { border-color: #ef4444; }
+    .error-item.warning { border-color: #f59e0b; }
+    .error-item.disconnected { border-color: #94a3b8; }
+    .error-time { font-weight: 700; color: #3b82f6; min-width: 70px; }
+    .error-sensor { flex: 1; color: #475569; }
+    .error-value { font-weight: 700; }
+    .pill { background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; padding: 6px 10px; border-radius: 12px; font-weight: 700; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
+    .meta-chip { background: #e2e8f0; border-radius: 10px; padding: 10px; font-weight: 700; color: #0f172a; }
+    .meta-chip span { display: block; color: #475569; font-weight: 500; margin-top: 4px; }
+    @media (max-width: 900px) {
+      .sensors-grid { grid-template-columns: 1fr; }
+      .system-metrics { grid-template-columns: repeat(2, 1fr); }
+    }
   </style>
 {% endblock %}
 
 {% block content %}
-<div class="card">
-  <h3>سنسور محیطی مرکزی</h3>
-  <div class="kpi-grid">
-    <div class="kpi">
-      <div class="label">دما (°C)</div>
-      <div class="value" id="central-temp">-</div>
-      <div class="muted" id="central-temp-ts">--:--</div>
+<div class="container">
+  <header class="header">
+    <h1>پنل مرکزی - {{ central.ident.cluster_name }}</h1>
+    <div class="muted">شناسه: {{ central.ident.box_id }} | تعداد سنسورهای متصل: {{ sensors|length }}</div>
+    <div class="meta-grid">
+      <div class="meta-chip">دمای مرکزی <span id="central-temp">-</span></div>
+      <div class="meta-chip">رطوبت مرکزی <span id="central-hum">-</span></div>
+      <div class="meta-chip">گاز/بو مرکزی <span id="central-gas">-</span></div>
+      <div class="meta-chip">آخرین صدا <span id="central-audio">-</span></div>
     </div>
-    <div class="kpi">
-      <div class="label">رطوبت (%)</div>
-      <div class="value" id="central-hum">-</div>
-      <div class="muted" id="central-hum-ts">--:--</div>
-    </div>
-    <div class="kpi">
-      <div class="label">گاز (V)</div>
-      <div class="value" id="central-gas">-</div>
-      <div class="muted" id="central-gas-ts">--:--</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Δ گاز</div>
-      <div class="value" id="central-dv">-</div>
-      <div class="muted" id="central-dv-ts">--:--</div>
-    </div>
-    <div class="kpi">
-      <div class="label">آخرین صدا</div>
-      <div class="value" id="central-audio">-</div>
-      <div class="muted" id="central-audio-label">-</div>
-    </div>
-  </div>
-</div>
+  </header>
 
-<div class="card">
-  <h3>مقایسه زنده سنسورها</h3>
-  <div class="chart-grid">
-    <div class="chart-box">
-      <div class="chart-title">دما</div>
-      <div style="height:220px"><canvas id="chart-compare-temp"></canvas></div>
-    </div>
-    <div class="chart-box">
-      <div class="chart-title">رطوبت</div>
-      <div style="height:220px"><canvas id="chart-compare-hum"></canvas></div>
-    </div>
-    <div class="chart-box">
-      <div class="chart-title">گاز</div>
-      <div style="height:220px"><canvas id="chart-compare-gas"></canvas></div>
-    </div>
-  </div>
-</div>
+  <main class="dashboard-grid">
+    <section class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">🏢</span>
+        <span class="panel-title">{{ central.ident.cluster_name }}</span>
+        <span class="panel-type">باکس محیطی</span>
+      </div>
 
-<div class="card">
-  <h3>باکس‌های سنسور</h3>
-  <div id="sensor-grid" class="grid"></div>
+      <div class="device-pills" id="device-pills"></div>
+
+      <div class="comparison-section">
+        <div class="section-title">📊 مقایسه سنسورها (به‌روزرسانی از دیتابیس و API)</div>
+        <div class="sensors-grid" id="sensors-grid"></div>
+      </div>
+
+      <div class="comparison-section">
+        <div class="section-title">💻 پارامترهای سیستمی</div>
+        <div class="system-metrics" id="system-metrics"></div>
+      </div>
+
+      <div class="comparison-section">
+        <div class="section-title">🔊 آخرین صداها</div>
+        <div class="error-history" id="audio-history"></div>
+      </div>
+
+      <div class="comparison-section">
+        <div class="section-title">⚠️ وضعیت سنسورها</div>
+        <div class="error-history" id="sensor-state"></div>
+      </div>
+    </section>
+  </main>
 </div>
 
 <script>
   var chartInstances = {};
   var dashboardData = { central: {{ central|tojson }}, sensors: {{ sensors|tojson }} };
 
-  function formatNumber(value, decimals) {
-    if (value === null || value === undefined) { return '-'; }
-    var d = typeof decimals === 'number' ? decimals : (Math.abs(value) < 1 ? 2 : 1);
-    var num = Number(value);
-    if (isNaN(num)) { return '-'; }
-    return num.toFixed(d);
-  }
+  var metricConfig = [
+    { key: 'temp', name: 'دما', unit: '°C', icon: '🌡️', threshold: { warning: 32, danger: 40 } },
+    { key: 'hum', name: 'رطوبت', unit: '%', icon: '💧', threshold: { warning: 70, danger: 85 } },
+    { key: 'gas_v', name: 'بو/دود', unit: 'V', icon: '💨', threshold: { warning: 2.0, danger: 3.5 } },
+  ];
 
-  function sensorColor(idx) {
-    var palette = ['#0ea5e9', '#8b5cf6', '#f97316', '#10b981', '#f43f5e', '#06b6d4', '#a855f7'];
-    return palette[idx % palette.length];
+  var palette = ['#3b82f6', '#8b5cf6', '#f97316', '#10b981', '#ef4444', '#0ea5e9', '#a855f7', '#14b8a6', '#eab308'];
+
+  function sensorColor(idx) { return palette[idx % palette.length]; }
+
+  function fmt(val, unit, decimals) {
+    if (val === null || val === undefined) { return '--'; }
+    var num = Number(val);
+    if (isNaN(num)) { return '--'; }
+    var d = typeof decimals === 'number' ? decimals : (Math.abs(num) < 1 ? 2 : 1);
+    return num.toFixed(d) + (unit ? ' ' + unit : '');
   }
 
   function destroyChart(id) {
@@ -99,54 +206,67 @@
   }
 
   function padSeries(values, target) {
-    var arr = values ? values.slice(-target) : [];
+    var arr = Array.isArray(values) ? values.slice(-target) : [];
     while (arr.length < target) { arr.unshift(null); }
     return arr;
   }
 
-  function buildComparisonChart(canvasId, key, label) {
+  function pickLabels(target) {
+    var labels = dashboardData.central.history && dashboardData.central.history.labels ? dashboardData.central.history.labels.slice(-target) : [];
+    if (labels.length === 0) {
+      labels = [];
+      for (var i = 0; i < target; i++) { labels.push(''); }
+    }
+    while (labels.length < target) { labels.unshift(''); }
+    return labels;
+  }
+
+  function getMaxHistoryLength(key) {
+    var maxLen = 0;
+    var hist = dashboardData.central.history || {};
+    if (hist[key] && hist[key].length > maxLen) { maxLen = hist[key].length; }
+    dashboardData.sensors.forEach(function(s) {
+      if (s.history && s.history[key] && s.history[key].length > maxLen) {
+        maxLen = s.history[key].length;
+      }
+    });
+    return Math.max(maxLen, 10);
+  }
+
+  function buildComparisonChart(canvasId, key, unit) {
     var canvas = document.getElementById(canvasId);
     if (!canvas) { return; }
     destroyChart(canvasId);
 
-    var labels = dashboardData.central.history.labels || [];
-    if (labels.length === 0) { labels = []; }
-
+    var targetLen = getMaxHistoryLength(key);
+    var labels = pickLabels(targetLen);
     var datasets = [];
-    var centralColor = '#2563eb';
-    var centralValues = padSeries(dashboardData.central.history[key] || [], labels.length || 15);
-    if (labels.length === 0) {
-      var maxLen = centralValues.length > 0 ? centralValues.length : 15;
-      labels = [];
-      for (var i = 0; i < maxLen; i++) { labels.push(''); }
-    }
+    var centralValues = padSeries((dashboardData.central.history && dashboardData.central.history[key]) || [], targetLen);
 
     datasets.push({
       label: dashboardData.central.ident.cluster_name,
       data: centralValues,
-      borderColor: centralColor,
-      backgroundColor: 'rgba(37,99,235,0.18)',
-      fill: true,
-      tension: 0.35,
+      borderColor: palette[0],
+      backgroundColor: palette[0] + '30',
       borderWidth: 3,
+      tension: 0.35,
+      fill: true,
       pointRadius: 0
     });
 
-    for (var i = 0; i < dashboardData.sensors.length; i++) {
-      var sensor = dashboardData.sensors[i];
-      var color = sensorColor(i);
-      var historyValues = padSeries(sensor.history && sensor.history[key] ? sensor.history[key] : [], labels.length);
+    dashboardData.sensors.forEach(function(sensor, idx) {
+      var series = padSeries(sensor.history && sensor.history[key] ? sensor.history[key] : [], targetLen);
       datasets.push({
         label: sensor.sensor_name || sensor.sensor_id,
-        data: historyValues,
-        borderColor: color,
-        backgroundColor: color,
+        data: series,
+        borderColor: sensorColor(idx + 1),
+        backgroundColor: sensorColor(idx + 1),
         borderWidth: 2,
-        fill: false,
         tension: 0.35,
+        fill: false,
         pointRadius: 0
       });
-    }
+    });
 
     chartInstances[canvasId] = new Chart(canvas, {
       type: 'line',
@@ -159,14 +279,11 @@
           tooltip: {
             rtl: true,
             callbacks: {
-              label: function(context) {
-                var l = context.dataset.label || '';
-                var v = context.parsed.y;
+              label: function(ctx) {
+                var l = ctx.dataset.label || '';
+                var v = ctx.parsed.y;
                 if (l) { l += ': '; }
-                l += v === null ? '-' : formatNumber(v, key === 'gas_v' ? 2 : 1);
-                if (key === 'gas_v') { l += ' V'; }
-                else if (key === 'temp') { l += ' °C'; }
-                else if (key === 'hum') { l += ' %'; }
+                l += v === null ? '-' : fmt(v, unit, key === 'gas_v' ? 2 : 1);
                 return l;
               }
             }
@@ -180,135 +297,176 @@
     });
   }
 
-  function createSensorCard(sensor, idx) {
-    var color = sensorColor(idx);
-    var grid = document.getElementById('sensor-grid');
-    if (!grid) { return; }
-    var cardId = 'sensor-chart-' + idx;
-    var state = sensor.state || 'unknown';
-    var badgeClass = 'offline';
-    if (state === 'online') { badgeClass = 'online'; }
-    else if (state === 'unknown') { badgeClass = 'warn'; }
+  function statusFromThreshold(value, threshold, forceDisconnected) {
+    if (forceDisconnected) { return 'disconnected'; }
+    if (value === null || value === undefined) { return 'disconnected'; }
+    var num = Number(value);
+    if (isNaN(num)) { return 'disconnected'; }
+    if (num >= threshold.danger) { return 'danger'; }
+    if (num >= threshold.warning) { return 'warning'; }
+    return 'normal';
+  }
 
-    var html = '' +
-      '<div class="sensor-card">' +
-        '<div class="sensor-head">' +
-          '<div>' +
-            '<div class="sensor-name" style="color:' + color + '">' + (sensor.sensor_name || sensor.sensor_id || '-') + '</div>' +
-            '<div class="sensor-meta">IP: ' + (sensor.ip || '-') + '</div>' +
+  function renderSensorCards() {
+    var grid = document.getElementById('sensors-grid');
+    if (!grid) { return; }
+    var html = '';
+    metricConfig.forEach(function(metric, idx) {
+      var canvasId = 'chart-' + metric.key;
+      var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
+      var status = statusFromThreshold(centralVal, metric.threshold, false);
+      html += '' +
+        '<div class="sensor-box">' +
+          '<div class="sensor-box-header">' +
+            '<div class="sensor-box-title"><span style="font-size:1.3em">' + metric.icon + '</span><span>' + metric.name + '</span></div>' +
+            '<div class="sensor-box-value">' + fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1) + '</div>' +
           '</div>' +
-          '<span class="badge ' + badgeClass + '">' + (state === 'online' ? 'آنلاین' : state === 'offline' ? 'آفلاین' : 'نامشخص') + '</span>' +
-        '</div>' +
-        '<div class="muted">آخرین دیده شدن: ' + (sensor.last_seen || '-') + '</div>' +
-        '<div class="kpi-grid" style="margin-top:10px;">' +
-          '<div class="kpi"><div class="label">دما</div><div class="value">' + formatNumber(sensor.env && sensor.env.temp) + '</div></div>' +
-          '<div class="kpi"><div class="label">رطوبت</div><div class="value">' + formatNumber(sensor.env && sensor.env.hum) + '</div></div>' +
-          '<div class="kpi"><div class="label">گاز</div><div class="value">' + formatNumber(sensor.env && sensor.env.gas_v, 2) + '</div></div>' +
-        '</div>' +
-        '<div class="chart-holder"><canvas id="' + cardId + '"></canvas></div>' +
-      '</div>';
-    grid.innerHTML += html;
-  }
-
-  function renderSensors() {
-    var grid = document.getElementById('sensor-grid');
-    if (!grid) { return; }
-    grid.innerHTML = '';
-    for (var i = 0; i < dashboardData.sensors.length; i++) {
-      createSensorCard(dashboardData.sensors[i], i);
-    }
+          '<div class="chart-container"><canvas id="' + canvasId + '"></canvas></div>' +
+          '<div class="chart-labels">' +
+            '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + palette[0] + '; background:' + palette[0] + '30;"></div><span class="chart-label-text">' + (dashboardData.central.ident.cluster_name || 'مرکزی') + '</span></div>' +
+            dashboardData.sensors.map(function(s, sidx) { return '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + sensorColor(sidx + 1) + ';"></div><span class="chart-label-text">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</span></div>'; }).join('') +
+          '</div>' +
+        '</div>';
+    });
+    grid.innerHTML = html;
     setTimeout(function() {
-      for (var i = 0; i < dashboardData.sensors.length; i++) {
-        var sensor = dashboardData.sensors[i];
-        var canvasId = 'sensor-chart-' + i;
-        var labels = (sensor.history && sensor.history.labels) || [];
-        var values = (sensor.history && sensor.history.temp) || [];
-        if (labels.length === 0) {
-          labels = values.map(function() { return ''; });
-        }
-        destroyChart(canvasId);
-        var ctx = document.getElementById(canvasId);
-        if (!ctx) { continue; }
-        chartInstances[canvasId] = new Chart(ctx, {
-          type: 'line',
-          data: { labels: labels, datasets: [{
-            label: sensor.sensor_name || sensor.sensor_id,
-            data: values,
-            borderColor: sensorColor(i),
-            backgroundColor: sensorColor(i),
-            fill: false,
-            borderWidth: 3,
-            tension: 0.35,
-            pointRadius: 0
-          }] },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { x: { display: false }, y: { beginAtZero: false } }
-          }
-        });
-      }
-    }, 50);
+      metricConfig.forEach(function(metric) {
+        buildComparisonChart('chart-' + metric.key, metric.key, metric.unit);
+      });
+    }, 30);
   }
 
-  function renderCentralInfo() {
-    var env = dashboardData.central.env || {};
-    document.getElementById('central-temp').textContent = formatNumber(env.temp) + '°';
-    document.getElementById('central-hum').textContent = formatNumber(env.hum) + '%';
-    document.getElementById('central-gas').textContent = formatNumber(env.gas_v, 2) + 'V';
-    document.getElementById('central-dv').textContent = formatNumber(env.gas_dv, 2);
-    document.getElementById('central-temp-ts').textContent = env.ts || '--:--';
-    document.getElementById('central-hum-ts').textContent = env.ts || '--:--';
-    document.getElementById('central-gas-ts').textContent = env.ts || '--:--';
-    document.getElementById('central-dv-ts').textContent = env.ts || '--:--';
+  function renderDevicePills() {
+    var holder = document.getElementById('device-pills');
+    if (!holder) { return; }
+    holder.innerHTML = dashboardData.sensors.map(function(s, idx) {
+      var color = sensorColor(idx + 1);
+      return '<div class="device-pill" style="border-color:' + color + '"><span>⚙️</span><span class="device-pill-name" style="color:' + color + '">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</span><span class="pill" style="background:' + color + '15; color:' + color + '; border-color:' + color + '"> ' + (s.state || 'نامشخص') + '</span></div>';
+    }).join('');
+  }
 
-    var audio = (dashboardData.central.audio_summary && dashboardData.central.audio_summary.last_segment) || null;
-    var audioText = '-';
-    if (audio) {
-      audioText = (audio.ts || '') + ' | ' + formatNumber(audio.duration_sec) + 's';
-      document.getElementById('central-audio-label').textContent = audio.label || '-';
+  function renderSystemMetrics() {
+    var container = document.getElementById('system-metrics');
+    if (!container) { return; }
+    var cards = [];
+    var systems = [];
+
+    systems.push({ label: dashboardData.central.ident.cluster_name + ' (مرکزی)', health: dashboardData.central.health, color: palette[0] });
+    dashboardData.sensors.forEach(function(s, idx) {
+      systems.push({ label: s.sensor_name || s.sensor_id || 'سنسور', health: s.health, color: sensorColor(idx + 1) });
+    });
+
+    systems.forEach(function(item) {
+      if (!item.health) { return; }
+      ['cpu_percent', 'mem_percent', 'disk_percent', 'inode_percent'].forEach(function(key) {
+        var val = item.health[key];
+        if (val === null || val === undefined) { return; }
+        var status = statusFromThreshold(val, { warning: 70, danger: 90 }, false);
+        var circumference = 251;
+        var offset = circumference - (Math.max(0, Math.min(100, val)) / 100) * circumference;
+        var titleMap = { cpu_percent: 'CPU', mem_percent: 'RAM', disk_percent: 'Storage', inode_percent: 'Inode' };
+        cards.push(
+          '<div class="system-card ' + status + '">' +
+            '<div class="circular-chart">' +
+              '<svg width="100" height="100">' +
+                '<circle class="bg-circle" cx="50" cy="50" r="40"></circle>' +
+                '<circle class="progress-circle" cx="50" cy="50" r="40" style="stroke-dashoffset:' + offset + ';"></circle>' +
+              '</svg>' +
+              '<div class="circular-chart-text"><div class="circular-value">' + Math.round(val) + '</div><div class="circular-label">%</div></div>' +
+            '</div>' +
+            '<div class="system-label">' + titleMap[key] + '<div class="muted" style="margin-top:4px; color:' + item.color + ';">' + item.label + '</div></div>' +
+          '</div>'
+        );
+      });
+    });
+
+    if (cards.length === 0) {
+      cards.push('<div class="muted">اطلاعات سلامت در دسترس نیست.</div>');
     }
-    document.getElementById('central-audio').textContent = audioText;
+
+    container.innerHTML = cards.join('');
   }
 
-  function renderAllCharts() {
-    buildComparisonChart('chart-compare-temp', 'temp', 'دما');
-    buildComparisonChart('chart-compare-hum', 'hum', 'رطوبت');
-    buildComparisonChart('chart-compare-gas', 'gas_v', 'گاز');
-    renderSensors();
+  function renderAudioHistory() {
+    var holder = document.getElementById('audio-history');
+    if (!holder) { return; }
+    var items = [];
+    var sources = [{ name: dashboardData.central.ident.cluster_name || 'مرکزی', summary: dashboardData.central.audio_summary }];
+    dashboardData.sensors.forEach(function(s) { sources.push({ name: s.sensor_name || s.sensor_id || 'سنسور', summary: s.audio_summary }); });
+
+    sources.forEach(function(src) {
+      var seg = src.summary && src.summary.last_segment ? src.summary.last_segment : null;
+      if (!seg) { return; }
+      items.push(
+        '<div class="error-item warning">' +
+          '<div class="error-time">⏰ ' + (seg.ts || '--:--') + '</div>' +
+          '<div class="error-sensor">' + src.name + '</div>' +
+          '<div class="error-value">' + fmt(seg.duration_sec, 's', 1) + ' | ' + (seg.label || 'بدون برچسب') + '</div>' +
+        '</div>'
+      );
+    });
+
+    if (items.length === 0) {
+      holder.innerHTML = '<div class="muted">داده‌ای از صدا یافت نشد.</div>';
+      return;
+    }
+    holder.innerHTML = items.join('');
+  }
+
+  function renderSensorStates() {
+    var holder = document.getElementById('sensor-state');
+    if (!holder) { return; }
+    var items = [];
+    dashboardData.sensors.forEach(function(s, idx) {
+      var state = s.state || 'unknown';
+      var css = state === 'online' ? 'normal' : (state === 'offline' ? 'disconnected' : 'warning');
+      items.push(
+        '<div class="error-item ' + css + '">' +
+          '<div class="error-time" style="color:' + sensorColor(idx + 1) + ';">' + (s.last_seen || '--:--') + '</div>' +
+          '<div class="error-sensor">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</div>' +
+          '<div class="error-value">' + state + '</div>' +
+        '</div>'
+      );
+    });
+    if (items.length === 0) {
+      holder.innerHTML = '<div class="muted">سنسوری متصل نیست.</div>';
+      return;
+    }
+    holder.innerHTML = items.join('');
+  }
+
+  function renderMeta() {
+    var env = dashboardData.central.env || {};
+    document.getElementById('central-temp').textContent = fmt(env.temp, '°C', 1);
+    document.getElementById('central-hum').textContent = fmt(env.hum, '%', 1);
+    document.getElementById('central-gas').textContent = fmt(env.gas_v, 'V', 2);
+    var audio = dashboardData.central.audio_summary && dashboardData.central.audio_summary.last_segment;
+    document.getElementById('central-audio').textContent = audio ? (audio.ts || '--') + ' | ' + fmt(audio.duration_sec, 's', 1) : '-';
+  }
+
+  function renderAll() {
+    renderMeta();
+    renderDevicePills();
+    renderSensorCards();
+    renderSystemMetrics();
+    renderAudioHistory();
+    renderSensorStates();
   }
 
   function updateDashboard(payload) {
     dashboardData.central = payload.central || dashboardData.central;
     dashboardData.sensors = payload.sensors || dashboardData.sensors;
-    renderCentralInfo();
-    renderAllCharts();
+    renderAll();
   }
 
   function fetchDashboard() {
-    if (!window.fetch) {
-      try {
-        var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState === 4 && xhr.status === 200) {
-            updateDashboard(JSON.parse(xhr.responseText));
-          }
-        };
-        xhr.open('GET', '/api/dashboard_state', true);
-        xhr.setRequestHeader('Cache-Control', 'no-cache');
-        xhr.send();
-      } catch (e) { console.warn('xhr failed', e); }
-      return;
-    }
     fetch('/api/dashboard_state', { cache: 'no-store' })
       .then(function(r) { return r.json(); })
       .then(updateDashboard)
       .catch(function(err) { console.warn('dashboard fetch', err); });
   }
 
-  renderCentralInfo();
-  renderAllCharts();
+  renderAll();
   setInterval(fetchDashboard, 8000);
 </script>
 {% endblock %}
