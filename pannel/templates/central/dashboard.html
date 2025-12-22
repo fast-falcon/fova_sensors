@@ -192,7 +192,12 @@
   var DISCONNECTED_FILL = '#e2e8f0';
   var MAX_ALLOWED_GAP = 2;
   var MAX_HISTORY_POINTS = 90;
-  var POLL_INTERVAL_MS = 3000;
+  var POLL_INTERVAL_MS = Number(window.POLL_MS || (dashboardData && dashboardData.poll_ms) || 2000);
+  var TICK_MS = 200; // Added live ticking interval for smooth chart motion
+  var ROLLING_WINDOW_MS = 60000; // Keep about the last minute of data
+  var MAX_ROLLING_POINTS = Math.max(30, Math.round(ROLLING_WINDOW_MS / TICK_MS));
+  var liveBuffers = {}; // Added live buffers per metric to keep charts moving between polls
+  var liveLabelCounter = 0; // Added global counter to generate advancing labels
   var sensorLayoutKey = null;
 
   function sensorColor(idx) { return palette[idx % palette.length]; }
@@ -255,6 +260,27 @@
     return fillMissing(normalized);
   }
 
+  // Added helper to trim arrays to rolling window length
+  function trimToRollingWindow(arr) {
+    while (arr.length > MAX_ROLLING_POINTS) { arr.shift(); }
+    return arr;
+  }
+
+  // Added helper to fetch latest non-null value from an array
+  function latestValue(arr) {
+    for (var i = arr.length - 1; i >= 0; i--) {
+      if (arr[i] !== null && arr[i] !== undefined) { return arr[i]; }
+    }
+    return null;
+  }
+
+  // Added helper to generate advancing labels for x-axis
+  function nextLabel() {
+    liveLabelCounter += 1;
+    var now = new Date();
+    return now.toLocaleTimeString('fa-IR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' #' + liveLabelCounter;
+  }
+
   function styleSegments(flags, baseColor, fillColor) {
     return {
       borderColor: function(ctx) {
@@ -280,55 +306,151 @@
         maxLen = s.history[key].length;
       }
     });
-    return Math.max(maxLen, 10);
+    return Math.min(Math.max(maxLen, 10), MAX_ROLLING_POINTS);
+  }
+
+  // Added live buffer creation/maintenance to keep charts moving between polls
+  function ensureLiveBuffer(metricKey) {
+    if (liveBuffers[metricKey]) { return liveBuffers[metricKey]; }
+
+    var targetLen = getMaxHistoryLength(metricKey);
+    var labels = normalizeLabels(
+      dashboardData.central.history && dashboardData.central.history.labels,
+      targetLen
+    );
+
+    var buffer = { labels: labels, datasets: { } };
+
+    var centralSeries = buildSeries(
+      (dashboardData.central.history && dashboardData.central.history[metricKey]) || [],
+      targetLen
+    );
+    buffer.datasets.central = {
+      label: dashboardData.central.ident.cluster_name || 'مرکزی',
+      color: palette[0],
+      fillColor: palette[0] + '30',
+      data: trimToRollingWindow(centralSeries.data),
+      flags: trimToRollingWindow(centralSeries.disconnected),
+      lastValue: latestValue(centralSeries.data)
+    };
+
+    dashboardData.sensors.forEach(function(sensor, idx) {
+      var series = buildSeries(
+        sensor.history && sensor.history[metricKey] ? sensor.history[metricKey] : [],
+        targetLen
+      );
+      var dsKey = sensor.sensor_id || ('sensor-' + idx);
+      buffer.datasets[dsKey] = {
+        label: sensor.sensor_name || sensor.sensor_id || 'سنسور',
+        color: sensorColor(idx + 1),
+        fillColor: null,
+        data: trimToRollingWindow(series.data),
+        flags: trimToRollingWindow(series.disconnected),
+        lastValue: latestValue(series.data)
+      };
+    });
+
+    liveBuffers[metricKey] = buffer;
+    return buffer;
+  }
+
+  // Added helper to sync sensor datasets after a payload change
+  function syncSensorsForMetric(metricKey, sensors) {
+    var buffer = ensureLiveBuffer(metricKey);
+    var labelLength = buffer.labels.length;
+    var activeKeys = [];
+
+    sensors.forEach(function(sensor, idx) {
+      var key = sensor.sensor_id || ('sensor-' + idx);
+      activeKeys.push(key);
+      if (!buffer.datasets[key]) {
+        buffer.datasets[key] = {
+          label: sensor.sensor_name || sensor.sensor_id || 'سنسور',
+          color: sensorColor(idx + 1),
+          fillColor: null,
+          data: Array(labelLength).fill(null),
+          flags: Array(labelLength).fill(false),
+          lastValue: null
+        };
+      } else {
+        buffer.datasets[key].label = sensor.sensor_name || sensor.sensor_id || 'سنسور';
+        buffer.datasets[key].color = sensorColor(idx + 1);
+      }
+    });
+
+    Object.keys(buffer.datasets).forEach(function(key) {
+      if (key === 'central') { return; }
+      if (activeKeys.indexOf(key) === -1) { delete buffer.datasets[key]; }
+    });
+  }
+
+  // Added helper to append a new point set to all datasets of a metric
+  function appendMetricPoint(metricKey, valuesMap, disconnectedMap) {
+    var buffer = ensureLiveBuffer(metricKey);
+    var label = nextLabel();
+    buffer.labels.push(label);
+    trimToRollingWindow(buffer.labels);
+
+    Object.keys(buffer.datasets).forEach(function(dsKey) {
+      var ds = buffer.datasets[dsKey];
+      var raw = valuesMap && valuesMap.hasOwnProperty(dsKey) ? valuesMap[dsKey] : undefined;
+      var val = (raw === null || raw === undefined) ? ds.lastValue : raw;
+      var dis = disconnectedMap && (disconnectedMap === true || disconnectedMap[dsKey]);
+      ds.data.push(val);
+      ds.flags.push(Boolean(dis));
+      ds.lastValue = val;
+      trimToRollingWindow(ds.data);
+      trimToRollingWindow(ds.flags);
+      while (ds.data.length < buffer.labels.length) { ds.data.unshift(null); ds.flags.unshift(false); }
+      while (buffer.labels.length > ds.data.length) { buffer.labels.shift(); }
+    });
+  }
+
+  // Added helper to convert live buffer datasets to Chart.js datasets
+  function buildLiveDatasets(metricKey) {
+    var buffer = ensureLiveBuffer(metricKey);
+    var datasets = [];
+    var centralDs = buffer.datasets.central;
+    datasets.push({
+      label: centralDs.label,
+      data: centralDs.data,
+      borderColor: centralDs.color,
+      backgroundColor: centralDs.fillColor,
+      borderWidth: 3,
+      tension: 0.35,
+      fill: true,
+      pointRadius: 0,
+      spanGaps: true,
+      segment: styleSegments(centralDs.flags, centralDs.color, centralDs.fillColor)
+    });
+
+    Object.keys(buffer.datasets).forEach(function(key) {
+      if (key === 'central') { return; }
+      var ds = buffer.datasets[key];
+      datasets.push({
+        label: ds.label,
+        data: ds.data,
+        borderColor: ds.color,
+        backgroundColor: ds.color,
+        borderWidth: 2,
+        tension: 0.35,
+        fill: false,
+        pointRadius: 0,
+        spanGaps: true,
+        segment: styleSegments(ds.flags, ds.color)
+      });
+    });
+
+    return { labels: buffer.labels, datasets: datasets };
   }
 
   function buildComparisonChart(canvasId, key, unit) {
     var canvas = document.getElementById(canvasId);
     if (!canvas) { return; }
 
-    var targetLen = Math.min(Math.max(getMaxHistoryLength(key), 10), MAX_HISTORY_POINTS);
-    var labels = normalizeLabels(
-      dashboardData.central.history && dashboardData.central.history.labels,
-      targetLen
-    );
-    var datasets = [];
-    var centralSeries = buildSeries(
-      (dashboardData.central.history && dashboardData.central.history[key]) || [],
-      targetLen
-    );
-
-    datasets.push({
-      label: dashboardData.central.ident.cluster_name,
-      data: centralSeries.data,
-      borderColor: palette[0],
-      backgroundColor: palette[0] + '30',
-      borderWidth: 3,
-      tension: 0.35,
-      fill: true,
-      pointRadius: 0,
-      spanGaps: true,
-      segment: styleSegments(centralSeries.disconnected, palette[0], palette[0] + '30')
-    });
-
-    dashboardData.sensors.forEach(function(sensor, idx) {
-      var series = buildSeries(
-        sensor.history && sensor.history[key] ? sensor.history[key] : [],
-        targetLen
-      );
-      datasets.push({
-        label: sensor.sensor_name || sensor.sensor_id,
-        data: series.data,
-        borderColor: sensorColor(idx + 1),
-        backgroundColor: sensorColor(idx + 1),
-        borderWidth: 2,
-        tension: 0.35,
-        fill: false,
-        pointRadius: 0,
-        spanGaps: true,
-        segment: styleSegments(series.disconnected, sensorColor(idx + 1))
-      });
-    });
+    var live = buildLiveDatasets(key);
+    var labels = live.labels;
+    var datasets = live.datasets;
 
     var instance = chartInstances[canvasId];
     if (!instance) {
@@ -532,9 +654,33 @@
     renderSensorStates();
   }
 
+  // Added: update live buffers with fresh payload values while keeping rolling window
+  function ingestLiveValues() {
+    metricConfig.forEach(function(metric) {
+      syncSensorsForMetric(metric.key, dashboardData.sensors);
+      var values = { central: dashboardData.central.env ? dashboardData.central.env[metric.key] : null };
+      var disconnected = { central: false };
+      dashboardData.sensors.forEach(function(sensor, idx) {
+        var key = sensor.sensor_id || ('sensor-' + idx);
+        values[key] = sensor.env ? sensor.env[metric.key] : null;
+        disconnected[key] = sensor.state && sensor.state !== 'online';
+      });
+      appendMetricPoint(metric.key, values, disconnected);
+    });
+  }
+
+  // Added: keep charts moving smoothly between polls using last known values (sample-and-hold)
+  function tickLiveCharts() {
+    metricConfig.forEach(function(metric) {
+      appendMetricPoint(metric.key, null, false);
+      buildComparisonChart('chart-' + metric.key, metric.key, metric.unit);
+    });
+  }
+
   function updateDashboard(payload) {
     dashboardData.central = payload.central || dashboardData.central;
     dashboardData.sensors = payload.sensors || dashboardData.sensors;
+    ingestLiveValues();
     renderAll();
   }
 
@@ -545,7 +691,9 @@
       .catch(function(err) { console.warn('dashboard fetch', err); });
   }
 
+  ingestLiveValues();
   renderAll();
   setInterval(fetchDashboard, POLL_INTERVAL_MS);
+  setInterval(tickLiveCharts, TICK_MS);
 </script>
 {% endblock %}
