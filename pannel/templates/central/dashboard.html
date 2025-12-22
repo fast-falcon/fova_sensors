@@ -195,6 +195,7 @@
   var POLL_INTERVAL_MS = Number(window.POLL_MS || (dashboardData && dashboardData.poll_ms) || 2000);
   var TICK_MS = 200; // Added live ticking interval for smooth chart motion
   var ROLLING_WINDOW_MS = 60000; // Keep about the last minute of data
+  var SMOOTHING_ALPHA = 0.2; // Amount of easing toward the next real sample
   var MAX_ROLLING_POINTS = Math.max(30, Math.round(ROLLING_WINDOW_MS / TICK_MS));
   var liveBuffers = {}; // Added live buffers per metric to keep charts moving between polls
   var liveLabelCounter = 0; // Added global counter to generate advancing labels
@@ -331,7 +332,9 @@
       fillColor: palette[0] + '30',
       data: trimToRollingWindow(centralSeries.data),
       flags: trimToRollingWindow(centralSeries.disconnected),
-      lastValue: latestValue(centralSeries.data)
+      lastValue: latestValue(centralSeries.data),
+      liveValue: latestValue(centralSeries.data),
+      targetValue: latestValue(centralSeries.data)
     };
 
     dashboardData.sensors.forEach(function(sensor, idx) {
@@ -346,7 +349,9 @@
         fillColor: null,
         data: trimToRollingWindow(series.data),
         flags: trimToRollingWindow(series.disconnected),
-        lastValue: latestValue(series.data)
+        lastValue: latestValue(series.data),
+        liveValue: latestValue(series.data),
+        targetValue: latestValue(series.data)
       };
     });
 
@@ -370,7 +375,9 @@
           fillColor: null,
           data: Array(labelLength).fill(null),
           flags: Array(labelLength).fill(false),
-          lastValue: null
+          lastValue: null,
+          liveValue: null,
+          targetValue: null
         };
       } else {
         buffer.datasets[key].label = sensor.sensor_name || sensor.sensor_id || 'سنسور';
@@ -393,8 +400,26 @@
 
     Object.keys(buffer.datasets).forEach(function(dsKey) {
       var ds = buffer.datasets[dsKey];
-      var raw = valuesMap && valuesMap.hasOwnProperty(dsKey) ? valuesMap[dsKey] : undefined;
-      var val = (raw === null || raw === undefined) ? ds.lastValue : raw;
+      var hasIncoming = valuesMap && valuesMap.hasOwnProperty(dsKey);
+      var raw = hasIncoming ? valuesMap[dsKey] : undefined;
+      if (hasIncoming && raw !== null && raw !== undefined) {
+        ds.lastValue = raw;
+        ds.targetValue = raw;
+        if (ds.liveValue === null || ds.liveValue === undefined) { ds.liveValue = raw; }
+      } else if (hasIncoming && (raw === null || raw === undefined)) {
+        ds.targetValue = ds.liveValue;
+      }
+
+      var target = (ds.targetValue === undefined) ? ds.liveValue : ds.targetValue;
+      if (target === null || target === undefined) {
+        ds.liveValue = null;
+      } else if (ds.liveValue === null || ds.liveValue === undefined) {
+        ds.liveValue = target;
+      } else {
+        ds.liveValue = ds.liveValue + (target - ds.liveValue) * SMOOTHING_ALPHA;
+      }
+
+      var val = ds.liveValue;
       var dis = disconnectedMap && (disconnectedMap === true || disconnectedMap[dsKey]);
       ds.data.push(val);
       ds.flags.push(Boolean(dis));
