@@ -38,7 +38,7 @@ from panel_crypto import ensure_box_keypair, load_box_public_key, decrypt_with_p
 from panel_sensors_local import get_latest_env
 from panel_audio_local import get_last_audio_segment, list_audio_segments
 from panel_health import get_health_status
-from panel_db import init_db, DB_PATH, get_latest_sensor_sample
+from panel_db import init_db, DB_PATH, get_latest_sensor_sample, get_sensor_history
 from panel_net_common import parse_basic_auth_header
 from central_sensors_link import (
     update_sensor_state_from_payload,
@@ -103,6 +103,49 @@ def _merge_env_with_db(env: Optional[Dict[str, Any]], sensor_id: str) -> Dict[st
         "gas_high": env.get("gas_high") if env.get("gas_high") is not None else data.get("gas_high", False),
     }
     return merged
+
+
+def _safe_float(val: Any) -> Optional[float]:
+    try:
+        f = float(val)
+    except (TypeError, ValueError):
+        return None
+    return f
+
+
+def _build_env_history(sensor_id: str, current_env: Dict[str, Any]) -> Dict[str, Any]:
+    history_rows = get_sensor_history(sensor_id, limit=60)
+    metrics = ("temp", "hum", "gas_v", "gas_dv")
+    labels: List[str] = []
+    series: Dict[str, List[Optional[float]]] = {m: [] for m in metrics}
+
+    for row in history_rows:
+        labels.append(row.get("ts"))
+        data = row.get("data") or {}
+        for m in metrics:
+            series[m].append(_safe_float(data.get(m)))
+
+    # ensure the latest reading is present
+    latest_ts = current_env.get("ts") if isinstance(current_env, dict) else None
+    if latest_ts and (not labels or labels[-1] != latest_ts):
+        labels.append(latest_ts)
+        for m in metrics:
+            series[m].append(_safe_float(current_env.get(m)))
+
+    chosen_metric = "temp"
+    for m in metrics:
+        if any(v is not None for v in series[m]):
+            chosen_metric = m
+            break
+
+    unit_map = {"temp": "°C", "hum": "%", "gas_v": "V", "gas_dv": "V"}
+
+    return {
+        "labels": labels,
+        "series": series,
+        "primary_metric": chosen_metric,
+        "unit": unit_map.get(chosen_metric, ""),
+    }
 
 
 def _compose_audio_summary(
@@ -179,6 +222,7 @@ def _build_central_status() -> Dict[str, Any]:
         }
 
     env = _merge_env_with_db(env, ident["box_id"])
+    env_history = _build_env_history(ident["box_id"], env)
 
     # health
     h = get_health_status()
@@ -190,6 +234,7 @@ def _build_central_status() -> Dict[str, Any]:
     return {
         "ident": ident,
         "env": env,
+        "env_history": env_history,
         "health": health,
         "audio_summary": audio_summary,
     }
@@ -210,6 +255,7 @@ def _build_sensor_cards() -> List[Dict[str, Any]]:
                 "ip": st.ip,
                 "last_seen": st.last_seen,
                 "env": env,
+                "env_history": _build_env_history(st.sensor_id, env),
                 "audio_summary": audio_summary,
                 "health": _normalize_health(getattr(st, "health", None)),
                 "state": state_label,

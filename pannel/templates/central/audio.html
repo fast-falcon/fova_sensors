@@ -1,6 +1,15 @@
 {% extends "central/base_central.html" %}
 {% block title %}صداها - {{ ident.cluster_name }}{% endblock %}
 
+{% block extra_head %}
+  <style>
+    table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: right; }
+    th { background: #f1f5f9; color: #334155; }
+    audio { width: 100%; }
+  </style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
   <h3>صداهای ضبط شده روی باکس مرکزی</h3>

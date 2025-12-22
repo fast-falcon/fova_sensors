@@ -1,116 +1,72 @@
-<!DOCTYPE html>
-<html lang="fa">
+<!doctype html>
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>{% block title %}باکس مرکزی{% endblock %}</title>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: sans-serif;
-      direction: rtl;
-      background: #020617;
-      color: #f9fafb;
-      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 20px;
     }
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 16px;
-    }
+    .container { max-width: 1400px; margin: 0 auto; }
     .card {
-      background: #020617;
-      border-radius: 14px;
-      padding: 16px;
-      margin-top: 12px;
-      box-shadow: 0 4px 18px rgba(0,0,0,0.5);
-      border: 1px solid #1f2937;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+      border: 1px solid #e2e8f0;
+      margin-bottom: 16px;
     }
+    .hero {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .hero-title { font-size: 1.5em; font-weight: 700; color: #2563eb; }
+    .hero-sub { color: #475569; font-size: 0.95em; }
     .nav {
       display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      margin-bottom: 8px;
+      gap: 10px;
       flex-wrap: wrap;
+      margin-top: 8px;
     }
     .nav a {
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: #111827;
-      font-size: 13px;
-      color: #e5e7eb;
+      padding: 8px 14px;
+      border-radius: 14px;
       text-decoration: none;
+      color: #0f172a;
+      background: #e2e8f0;
+      font-size: 0.9em;
+      border: 1px solid transparent;
     }
-    .nav a.active {
-      background: #10b981;
-      color: #111827;
-    }
-    a {
-      color: #10b981;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    th, td {
-      padding: 6px 8px;
-      border-bottom: 1px solid #1f2937;
-    }
-    th {
-      background: #020617;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-    }
-    .badge.online { background: #16a34a; color: #022c22; }
-    .badge.offline { background: #6b7280; color: #020617; }
-    .badge.normal { background: #10b981; color: #052e16; }
-    .badge.warn { background: #facc15; color: #1f2937; }
-    .badge.alert { background: #ef4444; color: #111827; }
-    .badge.unknown { background: #4b5563; }
-    audio { width: 100%; }
-    .flex-row { display:flex; flex-wrap:wrap; gap:12px; }
-    .flex-col { flex:1 1 260px; }
+    .nav a.active { background: #2563eb; color: #ffffff; border-color: #1d4ed8; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 0.85em; }
+    .badge.online { background: #dcfce7; color: #15803d; }
+    .badge.offline { background: #e2e8f0; color: #334155; }
+    .badge.alert { background: #fee2e2; color: #b91c1c; }
+    .badge.warn { background: #fef9c3; color: #92400e; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-<div class="container">
-  <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
+  <div class="container">
+    <div class="card hero">
       <div>
-        <div style="font-size:18px; font-weight:bold;">
-          {{ central.ident.cluster_name }}
-        </div>
-        <div style="font-size:12px; opacity:0.8;">
-          ID: {{ central.ident.box_id }}
-        </div>
+        <div class="hero-title">{{ central.ident.cluster_name }}</div>
+        <div class="hero-sub">شناسه: {{ central.ident.box_id }}</div>
       </div>
-      <div style="font-size:11px; opacity:0.7;">
-        پنل باکس مرکزی
+      <div class="nav">
+        <a href="{{ url_for('central_dashboard') }}" class="{% if request.path == '/' %}active{% endif %}">داشبورد</a>
+        <a href="{{ url_for('central_audio') }}" class="{% if '/audio' in request.path %}active{% endif %}">صداها</a>
       </div>
     </div>
 
-    <div class="nav">
-      <a href="{{ url_for('central_dashboard') }}"
-         class="{% if request.path == '/' %}active{% endif %}">
-        وضعیت کلی
-      </a>
-      <a href="{{ url_for('central_audio') }}"
-         class="{% if '/audio' in request.path %}active{% endif %}">
-        صداها
-      </a>
-    </div>
+    {% block content %}{% endblock %}
   </div>
-
-  {% block content %}{% endblock %}
-</div>
 </body>
 </html>
-
