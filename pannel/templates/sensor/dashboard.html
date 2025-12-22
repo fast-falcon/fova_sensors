@@ -4,81 +4,101 @@
 {% block extra_head %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-    .chart-box { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; background: #f8fafc; }
-    .chart-holder { height: 200px; }
+    body { background: #f8fafc; }
+    .container { max-width: 1300px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 16px; padding: 16px; background: white; border-radius: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header h1 { margin: 0; color: #3b82f6; font-size: 21px; }
+    .header .muted { color: #475569; margin-top: 6px; }
+    .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .panel { background: white; border-radius: 15px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .panel-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+    .panel-title { font-size: 1.1em; font-weight: 700; color: #0f172a; flex: 1; }
+    .panel-type { background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; padding: 6px 10px; border-radius: 12px; font-weight: 700; }
+    .sensors-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+    .sensor-box { background: #f8fafc; border-radius: 12px; padding: 14px; border: 2px solid #e2e8f0; }
+    .sensor-box-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .sensor-box-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #0f172a; }
+    .sensor-box-value { font-size: 22px; font-weight: 800; color: #3b82f6; }
+    .chart-container { position: relative; height: 220px; margin-top: 10px; }
+    .chart-labels { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chart-label { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: #e2e8f0; font-size: 12px; color: #334155; }
+    .chart-label-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid; }
+    .chart-label-text { font-weight: 600; color: #334155; }
+    .system-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 10px; }
+    .system-card { background: #f8fafc; border-radius: 12px; padding: 14px; text-align: center; border: 2px solid; }
+    .system-card.normal { border-color: #10b981; }
+    .system-card.warning { border-color: #f59e0b; }
+    .system-card.danger { border-color: #ef4444; }
+    .circular-chart { width: 100px; height: 100px; margin: 8px auto; position: relative; }
+    .circular-chart svg { transform: rotate(-90deg); }
+    .circular-chart circle { fill: none; stroke-width: 8; stroke-linecap: round; }
+    .circular-chart .bg-circle { stroke: #e2e8f0; }
+    .circular-chart .progress-circle { stroke-dasharray: 251; stroke-dashoffset: 251; transition: stroke-dashoffset 0.3s ease; }
+    .circular-chart-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+    .circular-value { font-size: 1.5em; font-weight: 700; }
+    .circular-label { font-size: 0.75em; color: #64748b; }
+    .system-card.normal .progress-circle { stroke: #10b981; }
+    .system-card.warning .progress-circle { stroke: #f59e0b; }
+    .system-card.danger .progress-circle { stroke: #ef4444; }
+    .system-card.normal .circular-value { color: #10b981; }
+    .system-card.warning .circular-value { color: #f59e0b; }
+    .system-card.danger .circular-value { color: #ef4444; }
+    .system-label { font-weight: 700; color: #0f172a; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
+    .meta-chip { background: #e2e8f0; border-radius: 10px; padding: 10px; font-weight: 700; color: #0f172a; }
+    .meta-chip span { display: block; color: #475569; font-weight: 500; margin-top: 4px; }
+    .audio-box { background: #f8fafc; border-radius: 12px; padding: 12px; border: 2px solid #e2e8f0; }
     .muted { color: #475569; font-size: 12px; }
+    .section-title { font-size: 1.05em; font-weight: 700; color: #334155; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
   </style>
 {% endblock %}
 
 {% block content %}
-<div class="card">
-  <h3>وضعیت محیطی</h3>
-  <div class="kpi-grid">
-    <div class="kpi"><div class="label">دما (°C)</div><div class="value" id="env-temp">-</div><div class="muted" id="env-ts">--:--</div></div>
-    <div class="kpi"><div class="label">رطوبت (%)</div><div class="value" id="env-hum">-</div><div class="muted" id="env-ts-hum">--:--</div></div>
-    <div class="kpi"><div class="label">گاز (V)</div><div class="value" id="env-gas">-</div><div class="muted" id="env-ts-gas">--:--</div></div>
-    <div class="kpi"><div class="label">Δ گاز</div><div class="value" id="env-dv">-</div><div class="muted" id="env-ts-dv">--:--</div></div>
-  </div>
-</div>
-
-<div class="card">
-  <h3>سلامت سیستم</h3>
-  {% if status.health %}
-    <table>
-      <tr><th>پارامتر</th><th>مقدار</th></tr>
-      <tr><td>CPU</td><td>{{ "%.1f"|format(status.health.cpu_percent) }}%</td></tr>
-      <tr><td>RAM</td><td>{{ "%.1f"|format(status.health.mem_percent) }}%</td></tr>
-      <tr><td>Disk</td><td>{{ "%.1f"|format(status.health.disk_percent) }}%</td></tr>
-      <tr><td>Inode</td><td>{{ "%.1f"|format(status.health.inode_percent) }}%</td></tr>
-    </table>
-    {% if status.health.last_issue %}
-      <p class="muted">آخرین مشکل: {{ status.health.last_issue }}</p>
-    {% endif %}
-  {% else %}
-    <p class="muted">هنوز اطلاعات سلامت ثبت نشده است.</p>
-  {% endif %}
-</div>
-
-<div class="card">
-  <h3>تاریخچه سنسور</h3>
-  <div class="grid">
-    <div class="chart-box">
-      <div class="muted">دما</div>
-      <div class="chart-holder"><canvas id="sensor-temp-chart"></canvas></div>
+<div class="container">
+  <header class="header">
+    <h1>پنل سنسور - {{ ident.sensor_name }}</h1>
+    <div class="muted">شناسه: {{ ident.box_id }}</div>
+    <div class="meta-grid">
+      <div class="meta-chip">دمای فعلی <span id="env-temp">-</span></div>
+      <div class="meta-chip">رطوبت فعلی <span id="env-hum">-</span></div>
+      <div class="meta-chip">بو/دود <span id="env-gas">-</span></div>
+      <div class="meta-chip">آخرین صدا <span id="audio-latest">-</span></div>
     </div>
-    <div class="chart-box">
-      <div class="muted">رطوبت</div>
-      <div class="chart-holder"><canvas id="sensor-hum-chart"></canvas></div>
-    </div>
-    <div class="chart-box">
-      <div class="muted">گاز</div>
-      <div class="chart-holder"><canvas id="sensor-gas-chart"></canvas></div>
-    </div>
-  </div>
-</div>
+  </header>
 
-<div class="card">
-  <h3>خلاصه‌ی صدا</h3>
-  {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
-  {% if a %}
-    <p class="muted">آخرین segment: {{ a.ts }} | مدت: {{ "%.1f"|format(a.duration_sec) }} ثانیه | برچسب: {{ a.label if a.label else '-' }}</p>
-    <p class="muted">برای دیدن همه صداها به تب صداها بروید.</p>
-  {% else %}
-    <p class="muted">هنوز صدایی ثبت نشده است.</p>
-  {% endif %}
+  <main class="dashboard-grid">
+    <section class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📊 وضعیت محیطی</span>
+        <span class="panel-type">باکس سنسور</span>
+      </div>
+
+      <div class="sensors-grid" id="sensor-charts"></div>
+
+      <div class="section-title" style="margin-top:16px;">💻 پارامترهای سیستمی</div>
+      <div class="system-metrics" id="system-metrics"></div>
+
+      <div class="section-title" style="margin-top:16px;">🔊 خلاصه صدا</div>
+      <div class="audio-box" id="audio-box"></div>
+    </section>
+  </main>
 </div>
 
 <script>
   var chartInstances = {};
   var sensorData = {{ status|tojson }};
+  var metricConfig = [
+    { key: 'temp', name: 'دما', unit: '°C', icon: '🌡️', color: '#3b82f6', threshold: { warning: 32, danger: 40 } },
+    { key: 'hum', name: 'رطوبت', unit: '%', icon: '💧', color: '#0ea5e9', threshold: { warning: 70, danger: 85 } },
+    { key: 'gas_v', name: 'بو/دود', unit: 'V', icon: '💨', color: '#f97316', threshold: { warning: 2.0, danger: 3.5 } },
+  ];
 
-  function fmt(val, decimals) {
-    if (val === null || val === undefined) { return '-'; }
-    var d = typeof decimals === 'number' ? decimals : (Math.abs(val) < 1 ? 2 : 1);
+  function fmt(val, unit, decimals) {
+    if (val === null || val === undefined) { return '--'; }
     var num = Number(val);
-    if (isNaN(num)) { return '-'; }
-    return num.toFixed(d);
+    if (isNaN(num)) { return '--'; }
+    var d = typeof decimals === 'number' ? decimals : (Math.abs(num) < 1 ? 2 : 1);
+    return num.toFixed(d) + (unit ? ' ' + unit : '');
   }
 
   function destroyChart(id) {
@@ -88,14 +108,23 @@
     }
   }
 
-  function drawChart(id, labels, values, color) {
-    var canvas = document.getElementById(id);
+  function statusFromThreshold(value, threshold) {
+    if (value === null || value === undefined) { return 'warning'; }
+    var num = Number(value);
+    if (isNaN(num)) { return 'warning'; }
+    if (num >= threshold.danger) { return 'danger'; }
+    if (num >= threshold.warning) { return 'warning'; }
+    return 'normal';
+  }
+
+  function drawChart(canvasId, labels, values, color) {
+    var canvas = document.getElementById(canvasId);
     if (!canvas) { return; }
-    destroyChart(id);
-    if (labels.length === 0) { labels = values.map(function() { return ''; }); }
-    chartInstances[id] = new Chart(canvas, {
+    destroyChart(canvasId);
+    var chartLabels = labels && labels.length ? labels.slice() : values.map(function() { return ''; });
+    chartInstances[canvasId] = new Chart(canvas, {
       type: 'line',
-      data: { labels: labels, datasets: [{
+      data: { labels: chartLabels, datasets: [{
         data: values,
         borderColor: color,
         backgroundColor: color,
@@ -104,30 +133,94 @@
         tension: 0.35,
         pointRadius: 0
       }]},
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { beginAtZero: false } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { rtl: true } }, scales: { x: { display: false }, y: { beginAtZero: false } } }
     });
   }
 
-  function renderEnv() {
+  function renderMeta() {
     var env = sensorData.env || {};
-    document.getElementById('env-temp').textContent = fmt(env.temp) + '°';
-    document.getElementById('env-hum').textContent = fmt(env.hum) + '%';
-    document.getElementById('env-gas').textContent = fmt(env.gas_v, 2) + 'V';
-    document.getElementById('env-dv').textContent = fmt(env.gas_dv, 2);
-    document.getElementById('env-ts').textContent = env.ts || '--:--';
-    document.getElementById('env-ts-hum').textContent = env.ts || '--:--';
-    document.getElementById('env-ts-gas').textContent = env.ts || '--:--';
-    document.getElementById('env-ts-dv').textContent = env.ts || '--:--';
+    document.getElementById('env-temp').textContent = fmt(env.temp, '°C', 1);
+    document.getElementById('env-hum').textContent = fmt(env.hum, '%', 1);
+    document.getElementById('env-gas').textContent = fmt(env.gas_v, 'V', 2);
+    var seg = sensorData.audio_summary && sensorData.audio_summary.last_segment;
+    document.getElementById('audio-latest').textContent = seg ? (seg.ts || '--') + ' | ' + fmt(seg.duration_sec, 's', 1) : '-';
   }
 
   function renderCharts() {
+    var grid = document.getElementById('sensor-charts');
+    if (!grid) { return; }
     var history = sensorData.history || { labels: [], temp: [], hum: [], gas_v: [] };
-    drawChart('sensor-temp-chart', history.labels || [], history.temp || [], '#2563eb');
-    drawChart('sensor-hum-chart', history.labels || [], history.hum || [], '#0ea5e9');
-    drawChart('sensor-gas-chart', history.labels || [], history.gas_v || [], '#f97316');
+    grid.innerHTML = metricConfig.map(function(metric) {
+      var latest = sensorData.env ? sensorData.env[metric.key] : null;
+      return '' +
+        '<div class="sensor-box">' +
+          '<div class="sensor-box-header">' +
+            '<div class="sensor-box-title"><span style="font-size:1.3em">' + metric.icon + '</span><span>' + metric.name + '</span></div>' +
+            '<div class="sensor-box-value">' + fmt(latest, metric.unit, metric.key === 'gas_v' ? 2 : 1) + '</div>' +
+          '</div>' +
+          '<div class="chart-container"><canvas id="chart-' + metric.key + '"></canvas></div>' +
+        '</div>';
+    }).join('');
+
+    setTimeout(function() {
+      metricConfig.forEach(function(metric) {
+        var values = history[metric.key] || [];
+        var labels = history.labels || [];
+        drawChart('chart-' + metric.key, labels, values, metric.color);
+      });
+    }, 30);
   }
 
-  renderEnv();
+  function renderSystem() {
+    var holder = document.getElementById('system-metrics');
+    if (!holder) { return; }
+    var health = sensorData.health;
+    if (!health) {
+      holder.innerHTML = '<div class="muted">اطلاعات سلامت در دسترس نیست.</div>';
+      return;
+    }
+    var cards = [];
+    ['cpu_percent', 'mem_percent', 'disk_percent', 'inode_percent'].forEach(function(key) {
+      var val = health[key];
+      if (val === null || val === undefined) { return; }
+      var status = statusFromThreshold(val, { warning: 70, danger: 90 });
+      var circumference = 251;
+      var offset = circumference - (Math.max(0, Math.min(100, val)) / 100) * circumference;
+      var titleMap = { cpu_percent: 'CPU', mem_percent: 'RAM', disk_percent: 'Storage', inode_percent: 'Inode' };
+      cards.push(
+        '<div class="system-card ' + status + '">' +
+          '<div class="circular-chart">' +
+            '<svg width="100" height="100">' +
+              '<circle class="bg-circle" cx="50" cy="50" r="40"></circle>' +
+              '<circle class="progress-circle" cx="50" cy="50" r="40" style="stroke-dashoffset:' + offset + ';"></circle>' +
+            '</svg>' +
+            '<div class="circular-chart-text"><div class="circular-value">' + Math.round(val) + '</div><div class="circular-label">%</div></div>' +
+          '</div>' +
+          '<div class="system-label">' + titleMap[key] + '</div>' +
+        '</div>'
+      );
+    });
+    if (cards.length === 0) {
+      holder.innerHTML = '<div class="muted">اطلاعات سلامت در دسترس نیست.</div>';
+      return;
+    }
+    holder.innerHTML = cards.join('');
+  }
+
+  function renderAudioBox() {
+    var box = document.getElementById('audio-box');
+    if (!box) { return; }
+    var seg = sensorData.audio_summary && sensorData.audio_summary.last_segment;
+    if (!seg) {
+      box.innerHTML = '<div class="muted">هنوز صدایی ثبت نشده است.</div>';
+      return;
+    }
+    box.innerHTML = '<div class="muted">آخرین segment: ' + (seg.ts || '--') + ' | مدت: ' + fmt(seg.duration_sec, 's', 1) + ' | برچسب: ' + (seg.label || '-') + '</div><div class="muted">برای دیدن همه صداها به تب صداها بروید.</div>';
+  }
+
+  renderMeta();
   renderCharts();
+  renderSystem();
+  renderAudioBox();
 </script>
 {% endblock %}
