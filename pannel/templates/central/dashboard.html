@@ -179,11 +179,6 @@
 <script>
   var chartInstances = {};
   var dashboardData = { central: {{ central|tojson }}, sensors: {{ sensors|tojson }} };
-  var chartBuffers = {};
-  var MAX_HISTORY_POINTS = 180;
-  var GAP_TOLERANCE = 2;
-  var DISCONNECTED_COLOR = '#9ca3af';
-  var FETCH_INTERVAL_MS = 3000;
 
   var metricConfig = [
     { key: 'temp', name: 'دما', unit: '°C', icon: '🌡️', threshold: { warning: 32, danger: 40 } },
@@ -203,186 +198,103 @@
     return num.toFixed(d) + (unit ? ' ' + unit : '');
   }
 
-  function appendHistorySeries(metricKey, sourceKey, labels, values) {
-    if (!labels || labels.length === 0) { return; }
-    var state = chartBuffers[metricKey] || { labels: [], series: {} };
-
-    if (!state.series[sourceKey]) {
-      state.series[sourceKey] = new Array(state.labels.length).fill(null);
+  function destroyChart(id) {
+    if (chartInstances[id]) {
+      chartInstances[id].destroy();
+      chartInstances[id] = null;
     }
-
-    if (state.labels.length > 0) {
-      var lastLabel = state.labels[state.labels.length - 1];
-      var lastIdx = labels.indexOf(lastLabel);
-      if (lastIdx === -1) {
-        state.labels = [];
-        state.series = {};
-        state.series[sourceKey] = [];
-      } else {
-        labels = labels.slice(lastIdx + 1);
-        values = values.slice(lastIdx + 1);
-      }
-    }
-
-    labels.forEach(function(label, i) {
-      var val = values ? values[i] : null;
-      state.labels.push(label || '');
-      Object.keys(state.series).forEach(function(k) {
-        if (state.series[k].length < state.labels.length) {
-          state.series[k].push(null);
-        }
-      });
-      state.series[sourceKey][state.labels.length - 1] = val;
-    });
-
-    var overflow = Math.max(0, state.labels.length - MAX_HISTORY_POINTS);
-    if (overflow > 0) {
-      state.labels = state.labels.slice(overflow);
-      Object.keys(state.series).forEach(function(k) {
-        state.series[k] = state.series[k].slice(overflow);
-      });
-    }
-
-    chartBuffers[metricKey] = state;
   }
 
-  function cleanupChartBuffer(metricKey, allowedKeys) {
-    var state = chartBuffers[metricKey];
-    if (!state) { return; }
-    Object.keys(state.series).forEach(function(k) {
-      if (allowedKeys.indexOf(k) === -1) {
-        delete state.series[k];
-      }
-    });
+  function padSeries(values, target) {
+    var arr = Array.isArray(values) ? values.slice(-target) : [];
+    while (arr.length < target) { arr.unshift(null); }
+    return arr;
   }
 
-  function buildContinuousSeries(rawValues, baseColor) {
-    var data = [];
-    var colors = [];
-    var lastVal = null;
-    var missing = 0;
-
-    rawValues.forEach(function(v) {
-      if (v === null || v === undefined) {
-        missing += 1;
-        if (lastVal !== null) {
-          data.push(lastVal);
-        } else {
-          data.push(null);
-        }
-      } else {
-        lastVal = Number(v);
-        missing = 0;
-        data.push(lastVal);
-      }
-      var color = missing > GAP_TOLERANCE ? DISCONNECTED_COLOR : baseColor;
-      colors.push(color);
-    });
-
-    return { data: data, colors: colors };
+  function pickLabels(target) {
+    var labels = dashboardData.central.history && dashboardData.central.history.labels ? dashboardData.central.history.labels.slice(-target) : [];
+    if (labels.length === 0) {
+      labels = [];
+      for (var i = 0; i < target; i++) { labels.push(''); }
+    }
+    while (labels.length < target) { labels.unshift(''); }
+    return labels;
   }
 
-  function getOrCreateChart(canvasId, unit, key) {
+  function getMaxHistoryLength(key) {
+    var maxLen = 0;
+    var hist = dashboardData.central.history || {};
+    if (hist[key] && hist[key].length > maxLen) { maxLen = hist[key].length; }
+    dashboardData.sensors.forEach(function(s) {
+      if (s.history && s.history[key] && s.history[key].length > maxLen) {
+        maxLen = s.history[key].length;
+      }
+    });
+    return Math.max(maxLen, 10);
+  }
+
+  function buildComparisonChart(canvasId, key, unit) {
     var canvas = document.getElementById(canvasId);
-    if (!canvas) { return null; }
-    if (!chartInstances[canvasId]) {
-      chartInstances[canvasId] = new Chart(canvas, {
-        type: 'line',
-        data: { labels: [], datasets: [] },
-        options: {
-          animation: false,
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              rtl: true,
-              callbacks: {
-                label: function(ctx) {
-                  var l = ctx.dataset.label || '';
-                  var v = ctx.parsed.y;
-                  if (l) { l += ': '; }
-                  l += v === null ? '-' : fmt(v, unit, key === 'gas_v' ? 2 : 1);
-                  return l;
-                }
+    if (!canvas) { return; }
+    destroyChart(canvasId);
+
+    var targetLen = getMaxHistoryLength(key);
+    var labels = pickLabels(targetLen);
+    var datasets = [];
+    var centralValues = padSeries((dashboardData.central.history && dashboardData.central.history[key]) || [], targetLen);
+
+    datasets.push({
+      label: dashboardData.central.ident.cluster_name,
+      data: centralValues,
+      borderColor: palette[0],
+      backgroundColor: palette[0] + '30',
+      borderWidth: 3,
+      tension: 0.35,
+      fill: true,
+      pointRadius: 0
+    });
+
+    dashboardData.sensors.forEach(function(sensor, idx) {
+      var series = padSeries(sensor.history && sensor.history[key] ? sensor.history[key] : [], targetLen);
+      datasets.push({
+        label: sensor.sensor_name || sensor.sensor_id,
+        data: series,
+        borderColor: sensorColor(idx + 1),
+        backgroundColor: sensorColor(idx + 1),
+        borderWidth: 2,
+        tension: 0.35,
+        fill: false,
+        pointRadius: 0
+      });
+    });
+
+    chartInstances[canvasId] = new Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            rtl: true,
+            callbacks: {
+              label: function(ctx) {
+                var l = ctx.dataset.label || '';
+                var v = ctx.parsed.y;
+                if (l) { l += ': '; }
+                l += v === null ? '-' : fmt(v, unit, key === 'gas_v' ? 2 : 1);
+                return l;
               }
             }
-          },
-          scales: {
-            x: { display: false },
-            y: { beginAtZero: false }
           }
+        },
+        scales: {
+          x: { display: false },
+          y: { beginAtZero: false }
         }
-      });
-    }
-    return chartInstances[canvasId];
-  }
-
-  function ensureDataset(chart, datasetKey, label, color, fill) {
-    var ds = chart.data.datasets.find(function(d) { return d._key === datasetKey; });
-    if (!ds) {
-      ds = {
-        _key: datasetKey,
-        label: label,
-        data: [],
-        borderColor: color,
-        backgroundColor: fill ? color + '30' : color,
-        borderWidth: fill ? 3 : 2,
-        tension: 0.35,
-        fill: !!fill,
-        pointRadius: 0,
-        segment: {
-          borderColor: function(ctx) {
-            var seg = ctx.dataset._segmentColors || [];
-            return seg[ctx.p1DataIndex] || ctx.dataset.borderColor;
-          }
-        }
-      };
-      chart.data.datasets.push(ds);
-    }
-
-    ds.label = label;
-    ds.borderColor = color;
-    ds.backgroundColor = fill ? color + '30' : color;
-    ds.fill = !!fill;
-    ds.borderWidth = fill ? 3 : 2;
-    return ds;
-  }
-
-  function updateComparisonChart(canvasId, key, unit) {
-    var chart = getOrCreateChart(canvasId, unit, key);
-    var state = chartBuffers[key];
-    if (!chart || !state || state.labels.length === 0) { return; }
-
-    var sources = [{ key: 'central', label: dashboardData.central.ident.cluster_name || 'مرکزی', color: palette[0], fill: true }];
-    dashboardData.sensors.forEach(function(sensor, idx) {
-      sources.push({
-        key: sensor.sensor_id || ('sensor-' + idx),
-        label: sensor.sensor_name || sensor.sensor_id || 'سنسور',
-        color: sensorColor(idx + 1),
-        fill: false
-      });
-    });
-
-    cleanupChartBuffer(key, sources.map(function(s) { return s.key; }));
-
-    chart.data.labels = state.labels.slice();
-
-    sources.forEach(function(src) {
-      if (!state.series[src.key]) {
-        state.series[src.key] = new Array(state.labels.length).fill(null);
       }
-      var prepared = buildContinuousSeries(state.series[src.key], src.color);
-      var ds = ensureDataset(chart, src.key, src.label, src.color, src.fill);
-      ds.data = prepared.data;
-      ds._segmentColors = prepared.colors;
     });
-
-    chart.data.datasets = chart.data.datasets.filter(function(ds) {
-      return sources.some(function(s) { return s.key === ds._key; });
-    });
-
-    chart.update('none');
   }
 
   function statusFromThreshold(value, threshold, forceDisconnected) {
@@ -395,59 +307,33 @@
     return 'normal';
   }
 
-  function ingestHistoryFromPayload() {
-    var centralHist = dashboardData.central.history || {};
-    metricConfig.forEach(function(metric) {
-      appendHistorySeries(metric.key, 'central', centralHist.labels || [], centralHist[metric.key] || []);
-    });
-
-    dashboardData.sensors.forEach(function(sensor, idx) {
-      var hist = sensor.history || {};
-      var srcKey = sensor.sensor_id || ('sensor-' + idx);
-      metricConfig.forEach(function(metric) {
-        appendHistorySeries(metric.key, srcKey, hist.labels || [], hist[metric.key] || []);
-      });
-    });
-  }
-
   function renderSensorCards() {
     var grid = document.getElementById('sensors-grid');
     if (!grid) { return; }
-    var needsBuild = !grid.dataset.built || Number(grid.dataset.sensorCount || '0') !== dashboardData.sensors.length;
-    if (needsBuild) {
-      var html = '';
-      metricConfig.forEach(function(metric) {
-        var canvasId = 'chart-' + metric.key;
-        var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
-        html += '' +
-          '<div class="sensor-box">' +
-            '<div class="sensor-box-header">' +
-              '<div class="sensor-box-title"><span style="font-size:1.3em">' + metric.icon + '</span><span>' + metric.name + '</span></div>' +
-              '<div class="sensor-box-value" id="metric-value-' + metric.key + '">' + fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1) + '</div>' +
-            '</div>' +
-            '<div class="chart-container"><canvas id="' + canvasId + '"></canvas></div>' +
-            '<div class="chart-labels">' +
-              '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + palette[0] + '; background:' + palette[0] + '30;"></div><span class="chart-label-text">' + (dashboardData.central.ident.cluster_name || 'مرکزی') + '</span></div>' +
-              dashboardData.sensors.map(function(s, sidx) { return '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + sensorColor(sidx + 1) + ';"></div><span class="chart-label-text">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</span></div>'; }).join('') +
-            '</div>' +
-          '</div>';
-      });
-      grid.innerHTML = html;
-      grid.dataset.built = '1';
-      grid.dataset.sensorCount = String(dashboardData.sensors.length);
-    } else {
-      metricConfig.forEach(function(metric) {
-        var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
-        var holder = document.getElementById('metric-value-' + metric.key);
-        if (holder) {
-          holder.textContent = fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1);
-        }
-      });
-    }
-
-    metricConfig.forEach(function(metric) {
-      updateComparisonChart('chart-' + metric.key, metric.key, metric.unit);
+    var html = '';
+    metricConfig.forEach(function(metric, idx) {
+      var canvasId = 'chart-' + metric.key;
+      var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
+      var status = statusFromThreshold(centralVal, metric.threshold, false);
+      html += '' +
+        '<div class="sensor-box">' +
+          '<div class="sensor-box-header">' +
+            '<div class="sensor-box-title"><span style="font-size:1.3em">' + metric.icon + '</span><span>' + metric.name + '</span></div>' +
+            '<div class="sensor-box-value">' + fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1) + '</div>' +
+          '</div>' +
+          '<div class="chart-container"><canvas id="' + canvasId + '"></canvas></div>' +
+          '<div class="chart-labels">' +
+            '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + palette[0] + '; background:' + palette[0] + '30;"></div><span class="chart-label-text">' + (dashboardData.central.ident.cluster_name || 'مرکزی') + '</span></div>' +
+            dashboardData.sensors.map(function(s, sidx) { return '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + sensorColor(sidx + 1) + ';"></div><span class="chart-label-text">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</span></div>'; }).join('') +
+          '</div>' +
+        '</div>';
     });
+    grid.innerHTML = html;
+    setTimeout(function() {
+      metricConfig.forEach(function(metric) {
+        buildComparisonChart('chart-' + metric.key, metric.key, metric.unit);
+      });
+    }, 30);
   }
 
   function renderDevicePills() {
@@ -559,7 +445,6 @@
   }
 
   function renderAll() {
-    ingestHistoryFromPayload();
     renderMeta();
     renderDevicePills();
     renderSensorCards();
@@ -582,6 +467,6 @@
   }
 
   renderAll();
-  setInterval(fetchDashboard, FETCH_INTERVAL_MS);
+  setInterval(fetchDashboard, 8000);
 </script>
 {% endblock %}
