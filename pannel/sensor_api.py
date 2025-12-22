@@ -36,7 +36,7 @@ from panel_sensors_local import get_latest_env
 from panel_health import get_health_status
 from panel_audio_local import list_audio_segments, get_last_audio_segment
 from panel_net_common import parse_basic_auth_header
-from panel_db import init_db, get_sensor_history
+from panel_db import init_db
 
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -87,48 +87,6 @@ def require_basic_auth(view_func):
     return wrapper
 
 
-def _safe_float(val: Any) -> Optional[float]:
-    try:
-        f = float(val)
-    except (TypeError, ValueError):
-        return None
-    return f
-
-
-def _build_env_history(sensor_id: str, current_env: Dict[str, Any]) -> Dict[str, Any]:
-    history_rows = get_sensor_history(sensor_id, limit=60)
-    metrics = ("temp", "hum", "gas_v", "gas_dv")
-    labels: List[str] = []
-    series: Dict[str, List[Optional[float]]] = {m: [] for m in metrics}
-
-    for row in history_rows:
-        labels.append(row.get("ts"))
-        data = row.get("data") or {}
-        for m in metrics:
-            series[m].append(_safe_float(data.get(m)))
-
-    latest_ts = current_env.get("ts") if isinstance(current_env, dict) else None
-    if latest_ts and (not labels or labels[-1] != latest_ts):
-        labels.append(latest_ts)
-        for m in metrics:
-            series[m].append(_safe_float(current_env.get(m)))
-
-    chosen_metric = "temp"
-    for m in metrics:
-        if any(v is not None for v in series[m]):
-            chosen_metric = m
-            break
-
-    unit_map = {"temp": "°C", "hum": "%", "gas_v": "V", "gas_dv": "V"}
-
-    return {
-        "labels": labels,
-        "series": series,
-        "primary_metric": chosen_metric,
-        "unit": unit_map.get(chosen_metric, ""),
-    }
-
-
 def _build_status_dict() -> Dict[str, Any]:
     ident = _get_sensor_identity()
     env_snap = get_latest_env()
@@ -177,13 +135,10 @@ def _build_status_dict() -> Dict[str, Any]:
     else:
         audio_summary = {}
 
-    env_history = _build_env_history(ident["box_id"], env)
-
     return {
         "sensor_id": ident["box_id"],
         "sensor_name": ident["sensor_name"],
         "env": env,
-        "env_history": env_history,
         "health": health_dict,
         "audio_summary": audio_summary,
     }
@@ -203,12 +158,6 @@ def sensor_audio_list():
     ident = _get_sensor_identity()
     segments = list_audio_segments(ident["box_id"], limit=100)
     return render_template("sensor/audio_list.html", ident=ident, segments=segments)
-
-
-@app.route("/api/dashboard_state", methods=["GET"])
-def api_dashboard_state():
-    init_db()
-    return jsonify(_build_status_dict())
 
 
 # ---------- API ROUTES (for central) ----------

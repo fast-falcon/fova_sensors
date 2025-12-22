@@ -1,48 +1,26 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
+<!DOCTYPE html>
+<html lang="fa">
 <head>
   <meta charset="UTF-8" />
   <title>انتخاب نقش باکس</title>
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; color: #0f172a; padding: 24px; }
-    .container { max-width: 720px; margin: 0 auto; }
-    .card { background: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 6px 24px rgba(15,23,42,0.08); border: 1px solid #e2e8f0; }
-    h1 { margin-bottom: 8px; color: #1d4ed8; }
-    p { color: #475569; margin-bottom: 18px; }
-    .option { background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
-    .actions { margin-top: 18px; display: flex; justify-content: flex-end; }
-    button { background: #2563eb; color: #fff; border: none; border-radius: 10px; padding: 10px 18px; font-size: 1em; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-  </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>انتخاب نقش</h1>
-      <p>نوع باکس را انتخاب کنید تا تنظیمات مناسب اعمال شود.</p>
-      {% if already_configured %}
-        <p style="color:#15803d;">پیکربندی قبلی یافت شد؛ در صورت نیاز می‌توانید نقش جدیدی انتخاب کنید.</p>
-      {% endif %}
-      <form method="post">
-        <label class="option">
-          <input type="radio" name="role" value="central" required />
-          <div>
-            <div style="font-weight:700;">باکس مرکزی</div>
-            <div style="color:#64748b; font-size:0.9em;">مدیریت سنسورها و ارتباط با سرور اصلی</div>
-          </div>
-        </label>
-        <label class="option">
-          <input type="radio" name="role" value="sensor" required />
-          <div>
-            <div style="font-weight:700;">باکس سنسور</div>
-            <div style="color:#64748b; font-size:0.9em;">ارسال داده محیطی و صوتی به باکس مرکزی</div>
-          </div>
-        </label>
-        <div class="actions">
-          <button type="submit">ادامه</button>
-        </div>
-      </form>
+  <h1>انتخاب نقش</h1>
+  {% if already_configured %}
+    <p style="color:green">پیکربندی قبلی یافت شد؛ در صورت نیاز می‌توانید نقش جدیدی انتخاب کنید.</p>
+  {% endif %}
+  <form method="post">
+    <div>
+      <label>
+        <input type="radio" name="role" value="central" required /> باکس مرکزی
+      </label>
     </div>
-  </div>
+    <div>
+      <label>
+        <input type="radio" name="role" value="sensor" required /> سنسور
+      </label>
+    </div>
+    <button type="submit">ادامه</button>
+  </form>
 </body>
 </html>
