@@ -1,13 +1,20 @@
 {% extends "central/base_central.html" %}
 {% block title %}صداها - {{ ident.cluster_name }}{% endblock %}
+{% block extra_head %}
+  <style>
+    .section-title { font-size: 1em; color: #334155; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .audio-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+    .audio-table th, .audio-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; }
+  </style>
+{% endblock %}
 
 {% block content %}
-<div class="card">
-  <h3>صداهای ضبط شده روی باکس مرکزی</h3>
-  <div id="central-audio-empty" style="display: {% if central_segments %}none{% else %}block{% endif %};">
-    <p>هنوز هیچ صدایی روی باکس مرکزی ثبت نشده است.</p>
+<div class="content-card">
+  <div class="section-title">🔊 صداهای ضبط شده روی باکس مرکزی</div>
+  <div id="central-audio-empty" style="display: {% if central_segments %}none{% else %}block{% endif %}; color:#475569;">
+    هنوز هیچ صدایی روی باکس مرکزی ثبت نشده است.
   </div>
-  <table id="central-audio-table" style="display: {% if central_segments %}table{% else %}none{% endif %};">
+  <table id="central-audio-table" class="audio-table" style="display: {% if central_segments %}table{% else %}none{% endif %};">
     <thead>
       <tr>
         <th>زمان</th>
@@ -29,10 +36,10 @@
   </table>
 </div>
 
-<div class="card">
-  <h3>سنسورها</h3>
+<div class="content-card">
+  <div class="section-title">📡 سنسورها</div>
   {% if sensors %}
-    <table>
+    <table class="audio-table">
       <tr>
         <th>نام</th>
         <th>ID</th>
@@ -55,7 +62,7 @@
       {% endfor %}
     </table>
   {% else %}
-    <p>سنسوری ثبت نشده است.</p>
+    <p style="color:#475569;">سنسوری ثبت نشده است.</p>
   {% endif %}
 </div>
 <script>

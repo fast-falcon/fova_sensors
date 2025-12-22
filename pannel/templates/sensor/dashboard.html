@@ -1,88 +1,165 @@
 {% extends "sensor/base_sensor.html" %}
 {% block title %}وضعیت سنسور - {{ ident.sensor_name }}{% endblock %}
-
-{% block content %}
-<div class="card">
-  <h2>وضعیت محیطی</h2>
-  {% set env = status.env %}
-  <p style="font-size:13px; opacity:0.8;">
-    آخرین نمونه: {{ env.ts or "نامشخص" }}
-  </p>
-  <table>
-    <tr>
-      <th>پارامتر</th>
-      <th>مقدار</th>
-    </tr>
-    <tr>
-      <td>دما (°C)</td>
-      <td>{{ env.temp if env.temp is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>رطوبت (%)</td>
-      <td>{{ env.hum if env.hum is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>گاز (v)</td>
-      <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>Δگاز</td>
-      <td>
-        {{ env.gas_dv if env.gas_dv is not none else "-" }}
-        {% if env.gas_high %}
-          <span class="badge crit">HIGH</span>
-        {% endif %}
-      </td>
-    </tr>
-  </table>
-</div>
-
-<div class="card">
-  <h2>سلامت سیستم</h2>
-  {% if status.health %}
-    {% set h = status.health %}
-    <p style="font-size:13px; opacity:0.8;">
-      آخرین بروزرسانی: {{ h.ts or "نامشخص" }}
-    </p>
-    <table>
-      <tr><th>پارامتر</th><th>مقدار</th></tr>
-      <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) }}%</td></tr>
-      <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) }}%</td></tr>
-      <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) }}%</td></tr>
-      <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) }}%</td></tr>
-    </table>
-    {% if h.last_issue %}
-      <p style="margin-top:8px; font-size:12px;">
-        آخرین مشکل ثبت‌شده:
-        <span class="badge warn">{{ h.last_issue }}</span>
-      </p>
-    {% endif %}
-  {% else %}
-    <p>هنوز اطلاعات سلامت ثبت نشده است.</p>
-  {% endif %}
-</div>
-
-<div class="card">
-  <h2>خلاصه‌ی صدا</h2>
-  {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
-  {% if a %}
-    <p style="font-size:13px; opacity:0.8;">
-      آخرین segment ثبت‌شده:
-    </p>
-    <table>
-      <tr><th>زمان</th><th>مدت (ثانیه)</th><th>برچسب</th></tr>
-      <tr>
-        <td>{{ a.ts }}</td>
-        <td>{{ "%.1f"|format(a.duration_sec) }}</td>
-        <td>{{ a.label if a.label else "-" }}</td>
-      </tr>
-    </table>
-    <p style="font-size:12px; margin-top:8px;">
-      برای دیدن و شنیدن همه‌ی صداها به تب <a href="{{ url_for('sensor_audio_list') }}">صداها</a> برو.
-    </p>
-  {% else %}
-    <p>هنوز هیچ صدایی ثبت نشده است.</p>
-  {% endif %}
-</div>
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .section-title { font-size: 1em; color: #334155; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .chip { display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 0.9em; color: #0f172a; }
+    .chip strong { color: #1e293b; }
+    .chart-wrap { position: relative; height: 220px; margin-top: 10px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+    .stat-box { padding: 10px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; }
+    .stat-label { color: #475569; font-size: 0.85em; }
+    .stat-value { font-size: 1.2em; font-weight: 700; color: #1e293b; }
+    .audio-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+    .audio-table th, .audio-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; }
+  </style>
 {% endblock %}
 
+{% block content %}
+<div class="content-card">
+  <div class="section-title">🏠 وضعیت محیطی</div>
+  {% set env = status.env %}
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+    <span class="chip">🌡️ <strong id="env-temp">{{ env.temp if env.temp is not none else '-' }}</strong> °C</span>
+    <span class="chip">💧 <strong id="env-hum">{{ env.hum if env.hum is not none else '-' }}</strong> %</span>
+    <span class="chip">💨 <strong id="env-gas">{{ env.gas_v if env.gas_v is not none else '-' }}</strong> V</span>
+    <span class="chip">Δگاز <strong id="env-gas-dv">{{ env.gas_dv if env.gas_dv is not none else '-' }}</strong></span>
+  </div>
+
+  <div class="grid two">
+    <div>
+      <div class="stat-label">دما</div>
+      <div class="chart-wrap"><canvas id="chart-temp"></canvas></div>
+    </div>
+    <div>
+      <div class="stat-label">رطوبت</div>
+      <div class="chart-wrap"><canvas id="chart-hum"></canvas></div>
+    </div>
+    <div>
+      <div class="stat-label">گاز</div>
+      <div class="chart-wrap"><canvas id="chart-gas"></canvas></div>
+    </div>
+    <div>
+      <div class="stat-label">Δ گاز</div>
+      <div class="chart-wrap"><canvas id="chart-gas-dv"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="content-card">
+    <div class="section-title">🖥️ سلامت سیستم</div>
+    {% set h = status.health or {} %}
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-label">CPU</div><div class="stat-value" id="health-cpu">{{ '%.1f'|format(h.cpu_percent) if h.cpu_percent is not none else '-' }}%</div></div>
+      <div class="stat-box"><div class="stat-label">RAM</div><div class="stat-value" id="health-ram">{{ '%.1f'|format(h.mem_percent) if h.mem_percent is not none else '-' }}%</div></div>
+      <div class="stat-box"><div class="stat-label">Disk</div><div class="stat-value" id="health-disk">{{ '%.1f'|format(h.disk_percent) if h.disk_percent is not none else '-' }}%</div></div>
+      <div class="stat-box"><div class="stat-label">Inode</div><div class="stat-value" id="health-inode">{{ '%.1f'|format(h.inode_percent) if h.inode_percent is not none else '-' }}%</div></div>
+    </div>
+    <div style="margin-top:10px; color:#475569; font-size:0.9em;">آخرین بروزرسانی: <span id="health-ts">{{ h.ts or 'نامشخص' }}</span></div>
+    {% if h.last_issue %}<div id="health-issue" style="margin-top:6px; color:#b91c1c; font-weight:600;">{{ h.last_issue }}</div>{% else %}<div id="health-issue" style="display:none;"></div>{% endif %}
+  </div>
+
+  <div class="content-card">
+    <div class="section-title">🔊 خلاصه‌ی صدا</div>
+    {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
+    <table class="audio-table">
+      <thead><tr><th>زمان</th><th>مدت</th><th>برچسب</th></tr></thead>
+      <tbody>
+        <tr>
+          <td id="audio-ts">{{ a.ts if a else '-' }}</td>
+          <td id="audio-duration">{{ '%.1f'|format(a.duration_sec) if a and a.duration_sec is not none else '-' }}</td>
+          <td id="audio-label">{{ a.label if a else '-' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  var chartMap = {};
+  var initStatus = {{ status|tojson }};
+
+  function renderSeries(canvasId, labels, data, color) {
+    var ctx = document.getElementById(canvasId);
+    if (!ctx) { return; }
+    if (chartMap[canvasId]) { chartMap[canvasId].destroy(); }
+    chartMap[canvasId] = new Chart(ctx, {
+      type: 'line',
+      data: { labels: labels, datasets: [{ data: data, borderColor: color, backgroundColor: color, tension: 0.35, borderWidth: 2, fill: false, pointRadius: 0, pointHoverRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { beginAtZero: true } } }
+    });
+  }
+
+  function renderEnv(data) {
+    var env = data.env || {};
+    document.getElementById('env-temp').textContent = env.temp !== null && env.temp !== undefined ? env.temp : '-';
+    document.getElementById('env-hum').textContent = env.hum !== null && env.hum !== undefined ? env.hum : '-';
+    document.getElementById('env-gas').textContent = env.gas_v !== null && env.gas_v !== undefined ? env.gas_v : '-';
+    document.getElementById('env-gas-dv').textContent = env.gas_dv !== null && env.gas_dv !== undefined ? env.gas_dv : '-';
+
+    var history = data.env_history || {};
+    var labels = history.labels || [];
+    renderSeries('chart-temp', labels, history.temp || [], '#2563eb');
+    renderSeries('chart-hum', labels, history.hum || [], '#06b6d4');
+    renderSeries('chart-gas', labels, history.gas_v || [], '#f59e0b');
+    renderSeries('chart-gas-dv', labels, history.gas_dv || [], '#10b981');
+  }
+
+  function renderHealth(h) {
+    document.getElementById('health-cpu').textContent = h && h.cpu_percent !== undefined && h.cpu_percent !== null ? h.cpu_percent.toFixed(1) + '%' : '-';
+    document.getElementById('health-ram').textContent = h && h.mem_percent !== undefined && h.mem_percent !== null ? h.mem_percent.toFixed(1) + '%' : '-';
+    document.getElementById('health-disk').textContent = h && h.disk_percent !== undefined && h.disk_percent !== null ? h.disk_percent.toFixed(1) + '%' : '-';
+    document.getElementById('health-inode').textContent = h && h.inode_percent !== undefined && h.inode_percent !== null ? h.inode_percent.toFixed(1) + '%' : '-';
+    var tsEl = document.getElementById('health-ts');
+    if (tsEl) { tsEl.textContent = (h && h.ts) ? h.ts : 'نامشخص'; }
+    var issueEl = document.getElementById('health-issue');
+    if (issueEl) {
+      var txt = h && h.last_issue ? h.last_issue : '';
+      issueEl.textContent = txt;
+      issueEl.style.display = txt ? 'block' : 'none';
+    }
+  }
+
+  function renderAudio(summary) {
+    var a = summary && summary.last_segment ? summary.last_segment : null;
+    document.getElementById('audio-ts').textContent = a && a.ts ? a.ts : '-';
+    document.getElementById('audio-duration').textContent = (a && typeof a.duration_sec === 'number') ? a.duration_sec.toFixed(1) : '-';
+    document.getElementById('audio-label').textContent = a && a.label ? a.label : '-';
+  }
+
+  function renderAll(payload) {
+    if (!payload) { return; }
+    renderEnv(payload);
+    renderHealth(payload.health || {});
+    renderAudio(payload.audio_summary || {});
+  }
+
+  function fetchStatus() {
+    if (window.fetch) {
+      fetch('/api/local_status', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(renderAll)
+        .catch(function (err) { console.warn('sensor status fetch error', err); });
+      return;
+    }
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          try { renderAll(JSON.parse(xhr.responseText)); } catch (e) { console.warn('parse error', e); }
+        }
+      };
+      xhr.open('GET', '/api/local_status', true);
+      xhr.setRequestHeader('Cache-Control', 'no-cache');
+      xhr.send();
+    } catch (err) { console.warn('sensor xhr error', err); }
+  }
+
+  renderAll(initStatus);
+  fetchStatus();
+  setInterval(fetchStatus, 10000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { fetchStatus(); } });
+</script>
+{% endblock %}
