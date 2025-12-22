@@ -1,52 +1,39 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa">
 <head>
   <meta charset="UTF-8" />
   <title>پیکربندی مرکزی - گام ۲</title>
-  <style>
-    body { font-family:'Segoe UI', Tahoma, sans-serif; background:#f8fafc; color:#0f172a; margin:0; padding:30px; }
-    .card { max-width: 720px; margin: 0 auto; background:white; padding:22px; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.08); border:1px solid #e2e8f0; }
-    h1 { margin-bottom: 12px; color:#1e293b; }
-    .field { margin:12px 0; }
-    label { display:block; margin-bottom:6px; font-weight:700; color:#334155; }
-    input { width: 100%; padding:10px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; }
-    .checkbox-row { display:flex; align-items:center; gap:8px; color:#475569; }
-    .button { margin-top:14px; padding:10px 16px; background:#2563eb; color:white; border:none; border-radius:10px; cursor:pointer; font-size:0.95em; }
-    .button:hover { background:#1d4ed8; }
-    .errors { background:#fef2f2; border:1px solid #fecdd3; color:#b91c1c; padding:10px 12px; border-radius:10px; }
-  </style>
 </head>
 <body>
-  <div class="card">
-    <h1>گام ۲: اتصال به سرور اصلی</h1>
-    {% if errors %}
-      <ul class="errors">
-        {% for err in errors %}<li>{{ err }}</li>{% endfor %}
-      </ul>
-    {% endif %}
-    <form method="post">
-      <div class="field">
-        <label>آدرس سرور اصلی:</label>
-        <input type="text" name="server_host" value="{{ server_host }}" required />
-      </div>
-      <div class="field">
-        <label>پورت سوکت سرور:</label>
-        <input type="number" name="server_socket_port" value="{{ server_socket_port }}" required />
-      </div>
-      <div class="field">
-        <label>پورت HTTP سرور:</label>
-        <input type="number" name="server_http_port" value="{{ server_http_port }}" required />
-      </div>
-      <div class="field">
-        <label>بازه ضبط صدا (ثانیه):</label>
-        <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" min="1" required />
-      </div>
-      <div class="field checkbox-row">
-        <input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %} />
-        <span>اتصال آنلاین به سرور اصلی (در صورت غیرفعال کردن، باکس مرکزی فقط محلی کار می‌کند)</span>
-      </div>
-      <button class="button" type="submit">تایید و ادامه</button>
-    </form>
-  </div>
+  <h1>گام ۲: اتصال به سرور اصلی</h1>
+  {% if errors %}
+    <ul style="color:red">
+      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+  <form method="post">
+    <div>
+      <label>آدرس سرور اصلی:</label>
+      <input type="text" name="server_host" value="{{ server_host }}" required />
+    </div>
+    <div>
+      <label>پورت سوکت سرور:</label>
+      <input type="number" name="server_socket_port" value="{{ server_socket_port }}" required />
+    </div>
+    <div>
+      <label>پورت HTTP سرور:</label>
+      <input type="number" name="server_http_port" value="{{ server_http_port }}" required />
+    </div>
+    <div>
+      <label>بازه ضبط صدا (ثانیه):</label>
+      <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" min="1" required />
+    </div>
+    <div>
+      <label>اتصال آنلاین به سرور اصلی:</label>
+      <input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %} />
+      <span>در صورت غیرفعال کردن، باکس مرکزی فقط محلی کار می‌کند.</span>
+    </div>
+    <button type="submit">تایید و ادامه</button>
+  </form>
 </body>
 </html>

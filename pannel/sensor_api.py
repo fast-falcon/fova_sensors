@@ -36,7 +36,7 @@ from panel_sensors_local import get_latest_env
 from panel_health import get_health_status
 from panel_audio_local import list_audio_segments, get_last_audio_segment
 from panel_net_common import parse_basic_auth_header
-from panel_db import init_db, get_sensor_history
+from panel_db import init_db
 
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -62,15 +62,6 @@ def _get_basic_auth_creds() -> Optional[Dict[str, str]]:
     if not u or not p:
         return None
     return {"user": u, "pass": p}
-
-
-def _safe_number(value: Any) -> Optional[float]:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def require_basic_auth(view_func):
@@ -144,36 +135,10 @@ def _build_status_dict() -> Dict[str, Any]:
     else:
         audio_summary = {}
 
-    history_rows = get_sensor_history(ident["box_id"], limit=30)
-    labels: List[str] = []
-    temps: List[Optional[float]] = []
-    hums: List[Optional[float]] = []
-    gas_vs: List[Optional[float]] = []
-    gas_dvs: List[Optional[float]] = []
-
-    for ts_iso, data in history_rows:
-        ts_label = ts_iso
-        try:
-            ts_label = ts_iso.split("T")[1][:5]
-        except Exception:
-            ts_label = ts_iso
-        labels.append(ts_label)
-        temps.append(_safe_number(data.get("temp")))
-        hums.append(_safe_number(data.get("hum")))
-        gas_vs.append(_safe_number(data.get("gas_v")))
-        gas_dvs.append(_safe_number(data.get("gas_dv")))
-
     return {
         "sensor_id": ident["box_id"],
         "sensor_name": ident["sensor_name"],
         "env": env,
-        "env_history": {
-            "labels": labels,
-            "temp": temps,
-            "hum": hums,
-            "gas_v": gas_vs,
-            "gas_dv": gas_dvs,
-        },
         "health": health_dict,
         "audio_summary": audio_summary,
     }
@@ -200,14 +165,6 @@ def sensor_audio_list():
 @app.route("/api/status", methods=["GET"])
 @require_basic_auth
 def api_status():
-    return jsonify(_build_status_dict())
-
-
-@app.route("/api/local_status", methods=["GET"])
-def api_local_status():
-    """نسخه‌ی بدون احراز هویت برای داشبورد محلی."""
-
-    init_db()
     return jsonify(_build_status_dict())
 
 

@@ -1,99 +1,116 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa">
 <head>
   <meta charset="UTF-8" />
   <title>{% block title %}باکس مرکزی{% endblock %}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
+      font-family: sans-serif;
+      direction: rtl;
+      background: #020617;
+      color: #f9fafb;
       margin: 0;
-      padding: 18px;
     }
-    a { color: #2563eb; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .layout {
-      max-width: 1600px;
+    .container {
+      max-width: 1100px;
       margin: 0 auto;
+      padding: 16px;
     }
-    .top-card {
-      background: white;
-      border-radius: 16px;
-      padding: 18px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      margin-bottom: 16px;
-      border: 1px solid #e2e8f0;
+    .card {
+      background: #020617;
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 12px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+      border: 1px solid #1f2937;
     }
-    .top-card h1 { font-size: 1.4em; margin-bottom: 6px; color: #1e293b; }
-    .top-sub { color: #475569; font-size: 0.9em; }
     .nav {
       display: flex;
       gap: 8px;
+      margin-top: 8px;
+      margin-bottom: 8px;
       flex-wrap: wrap;
-      margin-top: 12px;
     }
     .nav a {
-      padding: 8px 14px;
+      padding: 6px 12px;
       border-radius: 999px;
-      background: #e2e8f0;
-      color: #0f172a;
-      font-size: 0.9em;
-      border: 1px solid transparent;
+      background: #111827;
+      font-size: 13px;
+      color: #e5e7eb;
+      text-decoration: none;
     }
     .nav a.active {
-      background: #2563eb;
-      color: white;
-      border-color: #1d4ed8;
-      box-shadow: 0 2px 10px rgba(37,99,235,0.3);
+      background: #10b981;
+      color: #111827;
     }
-    .content-card {
-      background: white;
-      border-radius: 16px;
-      padding: 18px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-      border: 1px solid #e2e8f0;
-      margin-bottom: 16px;
+    a {
+      color: #10b981;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #1f2937;
+    }
+    th {
+      background: #020617;
     }
     .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 0.8em;
-      font-weight: 700;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
     }
-    .badge.online { background: #ecfdf3; color: #15803d; border: 1px solid #bbf7d0; }
-    .badge.offline { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
-    .badge.alert { background: #fef2f2; color: #dc2626; border: 1px solid #fecdd3; }
-    .badge.warn { background: #fffbeb; color: #b45309; border: 1px solid #fef08a; }
-    .badge.unknown { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; }
-    .grid { display: grid; gap: 14px; }
-    .grid.two { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
-    .grid.sensors { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+    .badge.online { background: #16a34a; color: #022c22; }
+    .badge.offline { background: #6b7280; color: #020617; }
+    .badge.normal { background: #10b981; color: #052e16; }
+    .badge.warn { background: #facc15; color: #1f2937; }
+    .badge.alert { background: #ef4444; color: #111827; }
+    .badge.unknown { background: #4b5563; }
+    audio { width: 100%; }
+    .flex-row { display:flex; flex-wrap:wrap; gap:12px; }
+    .flex-col { flex:1 1 260px; }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-  <div class="layout">
-    <div class="top-card">
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-        <div>
-          <h1>{{ central.ident.cluster_name }}</h1>
-          <div class="top-sub">ID: {{ central.ident.box_id }} · پنل باکس مرکزی</div>
+<div class="container">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-size:18px; font-weight:bold;">
+          {{ central.ident.cluster_name }}
         </div>
-        <div class="badge online">فعال</div>
+        <div style="font-size:12px; opacity:0.8;">
+          ID: {{ central.ident.box_id }}
+        </div>
       </div>
-      <div class="nav">
-        <a href="{{ url_for('central_dashboard') }}" class="{% if request.path == '/' %}active{% endif %}">وضعیت کلی</a>
-        <a href="{{ url_for('central_audio') }}" class="{% if '/audio' in request.path %}active{% endif %}">صداها</a>
+      <div style="font-size:11px; opacity:0.7;">
+        پنل باکس مرکزی
       </div>
     </div>
 
-    {% block content %}{% endblock %}
+    <div class="nav">
+      <a href="{{ url_for('central_dashboard') }}"
+         class="{% if request.path == '/' %}active{% endif %}">
+        وضعیت کلی
+      </a>
+      <a href="{{ url_for('central_audio') }}"
+         class="{% if '/audio' in request.path %}active{% endif %}">
+        صداها
+      </a>
+    </div>
   </div>
+
+  {% block content %}{% endblock %}
+</div>
 </body>
 </html>
 

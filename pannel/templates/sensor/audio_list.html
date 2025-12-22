@@ -1,18 +1,11 @@
 {% extends "sensor/base_sensor.html" %}
 {% block title %}صداهای سنسور - {{ ident.sensor_name }}{% endblock %}
-{% block extra_head %}
-  <style>
-    .section-title { font-size: 1em; color: #334155; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-    .audio-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
-    .audio-table th, .audio-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; }
-  </style>
-{% endblock %}
 
 {% block content %}
-<div class="content-card">
-  <div class="section-title">🔊 لیست صداهای ضبط شده</div>
+<div class="card">
+  <h2>لیست صداهای ضبط شده</h2>
   {% if segments %}
-    <table class="audio-table">
+    <table>
       <tr>
         <th>زمان</th>
         <th>مدت (ثانیه)</th>
@@ -33,7 +26,7 @@
       {% endfor %}
     </table>
   {% else %}
-    <p style="color:#475569;">هنوز هیچ segment صدایی ثبت نشده است.</p>
+    <p>هنوز هیچ segment صدایی ثبت نشده است.</p>
   {% endif %}
 </div>
 {% endblock %}

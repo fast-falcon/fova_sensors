@@ -1,89 +1,103 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa">
 <head>
   <meta charset="UTF-8" />
   <title>{% block title %}سنسور محیطی{% endblock %}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
+      font-family: sans-serif;
+      direction: rtl;
+      background: #0f1722;
+      color: #f5f5f5;
       margin: 0;
-      padding: 18px;
     }
-    a { color: #2563eb; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .layout {
-      max-width: 1200px;
+    .container {
+      max-width: 960px;
       margin: 0 auto;
+      padding: 16px;
     }
-    .top-card {
-      background: white;
-      border-radius: 16px;
-      padding: 18px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-      margin-bottom: 14px;
-      border: 1px solid #e2e8f0;
+    .card {
+      background: #111827;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
-    .top-card h1 { font-size: 1.3em; margin-bottom: 6px; color: #1e293b; }
-    .top-sub { color: #475569; font-size: 0.9em; }
+    a {
+      color: #00b894;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
     .nav {
       display: flex;
       gap: 8px;
+      margin-top: 8px;
+      margin-bottom: 8px;
       flex-wrap: wrap;
-      margin-top: 12px;
     }
     .nav a {
-      padding: 8px 14px;
+      padding: 6px 12px;
       border-radius: 999px;
-      background: #e2e8f0;
-      color: #0f172a;
-      font-size: 0.9em;
-      border: 1px solid transparent;
+      background: #1f2933;
+      font-size: 13px;
     }
     .nav a.active {
-      background: #2563eb;
-      color: white;
-      border-color: #1d4ed8;
-      box-shadow: 0 2px 10px rgba(37,99,235,0.25);
-    }
-    .content-card {
-      background: white;
-      border-radius: 16px;
-      padding: 18px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-      border: 1px solid #e2e8f0;
-      margin-bottom: 14px;
+      background: #00b894;
+      color: #fff;
     }
     .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 0.82em;
-      font-weight: 700;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #1f2933;
+      color: #fff;
     }
-    .badge.ok { background: #ecfdf3; color: #15803d; border: 1px solid #bbf7d0; }
-    .badge.warn { background: #fffbeb; color: #b45309; border: 1px solid #fef08a; }
-    .badge.crit { background: #fef2f2; color: #dc2626; border: 1px solid #fecdd3; }
-    .grid { display: grid; gap: 12px; }
-    .grid.two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .badge.ok {
+      background: #00b894;
+    }
+    .badge.warn {
+      background: #f1c40f;
+      color: #111;
+    }
+    .badge.crit {
+      background: #e74c3c;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #1f2933;
+    }
+    th {
+      background: #111827;
+    }
+    audio {
+      width: 100%;
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-<div class="layout">
-  <div class="top-card">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+<div class="container">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
       <div>
-        <div style="font-size:18px; font-weight:bold; color:#1e293b;">
+        <div style="font-size:18px; font-weight:bold;">
           {{ ident.sensor_name }}
         </div>
-        <div class="top-sub">ID: {{ ident.box_id }} · پنل باکس سنسور</div>
+        <div style="font-size:12px; opacity:0.8;">
+          ID: {{ ident.box_id }}
+        </div>
       </div>
-      <div class="badge ok">فعال</div>
+      <div style="font-size:11px; opacity:0.7;">
+        پنل باکس سنسور
+      </div>
     </div>
 
     <div class="nav">
