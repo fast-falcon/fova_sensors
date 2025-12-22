@@ -1,27 +1,30 @@
-{% extends "wizard/base.html" %}
-{% block title %}پیکربندی مرکزی - گام ۱{% endblock %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>پیکربندی مرکزی - گام ۱</title>
+</head>
+<body>
   <h1>گام ۱: اطلاعات اولیه مرکزی</h1>
-  <p>نام مجموعه و تنظیمات هات‌اسپات را وارد کنید.</p>
   {% if errors %}
-    <div class="alert">
-      <ul style="margin:0; padding-right:18px;">
-        {% for err in errors %}<li>{{ err }}</li>{% endfor %}
-      </ul>
-    </div>
+    <ul style="color:red">
+      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+    </ul>
   {% endif %}
   <form method="post">
-    <label>نام مجموعه (Cluster)</label>
-    <input type="text" name="cluster_name" value="{{ cluster_name }}" required />
-
-    <label>SSID هات‌اسپات</label>
-    <input type="text" name="hotspot_ssid" value="{{ hotspot_ssid }}" required />
-
-    <label>رمز هات‌اسپات</label>
-    <input type="password" name="hotspot_password" value="{{ hotspot_password }}" required />
-
-    <div class="flex" style="margin-top:12px;">
-      <button type="submit">مرحله بعد</button>
+    <div>
+      <label>نام مجموعه (Cluster):</label>
+      <input type="text" name="cluster_name" value="{{ cluster_name }}" required />
     </div>
+    <div>
+      <label>SSID هات‌اسپات:</label>
+      <input type="text" name="hotspot_ssid" value="{{ hotspot_ssid }}" required />
+    </div>
+    <div>
+      <label>رمز هات‌اسپات:</label>
+      <input type="password" name="hotspot_password" value="{{ hotspot_password }}" required />
+    </div>
+    <button type="submit">تایید و ادامه</button>
   </form>
-{% endblock %}
+</body>
+</html>

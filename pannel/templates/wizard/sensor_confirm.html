@@ -1,16 +1,18 @@
-{% extends "wizard/base.html" %}
-{% block title %}تایید تنظیمات سنسور{% endblock %}
-{% block content %}
-  <h1>تایید نهایی</h1>
-  <p>تنظیمات وارد شده برای سنسور را بررسی کنید.</p>
-  <ul style="line-height:1.8; color:#0f172a;">
-    <li>نام سنسور: {{ state.sensor_name }}</li>
-    <li>SSID وای‌فای: {{ state.wifi_ssid }}</li>
-    <li>هاست مرکزی: {{ state.central_host }}:{{ state.central_http_port }}</li>
-    <li>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</li>
-    <li>حالت آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</li>
-  </ul>
-  <form method="post" class="flex" style="margin-top:12px;">
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>تایید تنظیمات سنسور</title>
+</head>
+<body>
+  <h1>تایید</h1>
+  <p>نام سنسور: {{ state.sensor_name }}</p>
+  <p>SSID وای‌فای: {{ state.wifi_ssid }}</p>
+  <p>هاست مرکزی: {{ state.central_host }}:{{ state.central_http_port }}</p>
+  <p>بازه ضبط صدا: {{ state.audio_segment_seconds }} ثانیه</p>
+  <p>حالت آنلاین: {{ 'بله' if state.online_enabled else 'خیر' }}</p>
+  <form method="post">
     <button type="submit">ذخیره و ریبوت</button>
   </form>
-{% endblock %}
+</body>
+</html>

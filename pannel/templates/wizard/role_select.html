@@ -1,15 +1,26 @@
-{% extends "wizard/base.html" %}
-{% block title %}انتخاب نقش باکس{% endblock %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>انتخاب نقش باکس</title>
+</head>
+<body>
   <h1>انتخاب نقش</h1>
   {% if already_configured %}
-    <div class="alert">پیکربندی قبلی یافت شد؛ در صورت نیاز می‌توانید نقش جدیدی انتخاب کنید.</div>
+    <p style="color:green">پیکربندی قبلی یافت شد؛ در صورت نیاز می‌توانید نقش جدیدی انتخاب کنید.</p>
   {% endif %}
   <form method="post">
-    <label><input type="radio" name="role" value="central" required> باکس مرکزی</label>
-    <label><input type="radio" name="role" value="sensor" required> سنسور</label>
-    <div class="flex" style="margin-top:12px;">
-      <button type="submit">ادامه</button>
+    <div>
+      <label>
+        <input type="radio" name="role" value="central" required /> باکس مرکزی
+      </label>
     </div>
+    <div>
+      <label>
+        <input type="radio" name="role" value="sensor" required /> سنسور
+      </label>
+    </div>
+    <button type="submit">ادامه</button>
   </form>
-{% endblock %}
+</body>
+</html>
