@@ -1,88 +1,121 @@
 {% extends "sensor/base_sensor.html" %}
-{% block title %}وضعیت سنسور - {{ ident.sensor_name }}{% endblock %}
+{% block title %}داشبورد سنسور - {{ ident.sensor_name }}{% endblock %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .section-title { font-size: 1.05em; font-weight: 700; color: #1f2937; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .metric-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .metric { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; flex: 1 1 150px; }
+    .metric-title { color: #475569; font-size: 0.9em; }
+    .metric-value { font-weight: 800; font-size: 1.4em; color: #1d4ed8; }
+    .metric-sub { color: #94a3b8; font-size: 0.8em; }
+    .chart-box { position: relative; height: 260px; margin-top: 12px; }
+    .info-line { color: #475569; font-size: 0.95em; margin-top: 4px; }
+  </style>
+{% endblock %}
 
 {% block content %}
 <div class="card">
-  <h2>وضعیت محیطی</h2>
-  {% set env = status.env %}
-  <p style="font-size:13px; opacity:0.8;">
-    آخرین نمونه: {{ env.ts or "نامشخص" }}
-  </p>
-  <table>
-    <tr>
-      <th>پارامتر</th>
-      <th>مقدار</th>
-    </tr>
-    <tr>
-      <td>دما (°C)</td>
-      <td>{{ env.temp if env.temp is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>رطوبت (%)</td>
-      <td>{{ env.hum if env.hum is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>گاز (v)</td>
-      <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>Δگاز</td>
-      <td>
-        {{ env.gas_dv if env.gas_dv is not none else "-" }}
-        {% if env.gas_high %}
-          <span class="badge crit">HIGH</span>
-        {% endif %}
-      </td>
-    </tr>
-  </table>
+  <div class="section-title">📡 وضعیت محیطی</div>
+  <div class="metric-row">
+    <div class="metric"><div class="metric-title">دما</div><div id="sensor-temp" class="metric-value">-</div><div class="metric-sub">°C</div></div>
+    <div class="metric"><div class="metric-title">رطوبت</div><div id="sensor-hum" class="metric-value">-</div><div class="metric-sub">%</div></div>
+    <div class="metric"><div class="metric-title">بو/دود</div><div id="sensor-gas" class="metric-value">-</div><div class="metric-sub">V</div></div>
+  </div>
+  <div class="info-line">آخرین نمونه: <span id="sensor-last-ts">-</span></div>
+  <div class="chart-box"><canvas id="sensor-chart"></canvas></div>
 </div>
 
 <div class="card">
-  <h2>سلامت سیستم</h2>
-  {% if status.health %}
-    {% set h = status.health %}
-    <p style="font-size:13px; opacity:0.8;">
-      آخرین بروزرسانی: {{ h.ts or "نامشخص" }}
-    </p>
-    <table>
-      <tr><th>پارامتر</th><th>مقدار</th></tr>
-      <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) }}%</td></tr>
-      <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) }}%</td></tr>
-      <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) }}%</td></tr>
-      <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) }}%</td></tr>
-    </table>
-    {% if h.last_issue %}
-      <p style="margin-top:8px; font-size:12px;">
-        آخرین مشکل ثبت‌شده:
-        <span class="badge warn">{{ h.last_issue }}</span>
-      </p>
-    {% endif %}
-  {% else %}
-    <p>هنوز اطلاعات سلامت ثبت نشده است.</p>
-  {% endif %}
+  <div class="section-title">🖥️ سلامت سیستم</div>
+  <div class="metric-row">
+    <div class="metric"><div class="metric-title">CPU</div><div id="health-cpu" class="metric-value">-</div><div class="metric-sub">%</div></div>
+    <div class="metric"><div class="metric-title">RAM</div><div id="health-ram" class="metric-value">-</div><div class="metric-sub">%</div></div>
+    <div class="metric"><div class="metric-title">Storage</div><div id="health-disk" class="metric-value">-</div><div class="metric-sub">%</div></div>
+    <div class="metric"><div class="metric-title">Inode</div><div id="health-inode" class="metric-value">-</div><div class="metric-sub">%</div></div>
+  </div>
+  <div class="info-line">آخرین بروزرسانی: <span id="health-ts">-</span></div>
+  <div class="info-line">آخرین صدا: <span id="audio-label">-</span> (<span id="audio-duration">-</span>) در <span id="audio-ts">-</span></div>
 </div>
 
-<div class="card">
-  <h2>خلاصه‌ی صدا</h2>
-  {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
-  {% if a %}
-    <p style="font-size:13px; opacity:0.8;">
-      آخرین segment ثبت‌شده:
-    </p>
-    <table>
-      <tr><th>زمان</th><th>مدت (ثانیه)</th><th>برچسب</th></tr>
-      <tr>
-        <td>{{ a.ts }}</td>
-        <td>{{ "%.1f"|format(a.duration_sec) }}</td>
-        <td>{{ a.label if a.label else "-" }}</td>
-      </tr>
-    </table>
-    <p style="font-size:12px; margin-top:8px;">
-      برای دیدن و شنیدن همه‌ی صداها به تب <a href="{{ url_for('sensor_audio_list') }}">صداها</a> برو.
-    </p>
-  {% else %}
-    <p>هنوز هیچ صدایی ثبت نشده است.</p>
-  {% endif %}
-</div>
+<script>
+  var statusData = {{ status|tojson }};
+  var sensorChart = null;
+
+  function formatValue(val, suffix) {
+    if (suffix === undefined) { suffix = ''; }
+    if (val === null || val === undefined) { return '-'; }
+    if (typeof val === 'number') { return val.toFixed(1) + suffix; }
+    var num = parseFloat(val);
+    if (!isNaN(num)) { return num.toFixed(1) + suffix; }
+    return val + suffix;
+  }
+
+  function pickSeries(envHistory) {
+    envHistory = envHistory || {};
+    var labels = envHistory.labels || [];
+    var metric = envHistory.primary_metric || 'temp';
+    var series = (envHistory.series && envHistory.series[metric]) || [];
+    return { labels: labels, values: series };
+  }
+
+  function drawChart() {
+    var canvas = document.getElementById('sensor-chart');
+    if (!canvas) { return; }
+    var ctx = canvas.getContext('2d');
+    var series = pickSeries(statusData.env_history);
+    if (sensorChart) { sensorChart.destroy(); }
+
+    sensorChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: series.labels, datasets: [{
+        label: 'روند سنسور', data: series.values,
+        tension: 0.4, borderWidth: 3, borderColor: '#22c55e', pointRadius: 0, pointHoverRadius: 6, fill: false
+      }]},
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { beginAtZero: true } } }
+    });
+  }
+
+  function renderStatus() {
+    var env = statusData.env || {};
+    document.getElementById('sensor-temp').textContent = formatValue(env.temp, '');
+    document.getElementById('sensor-hum').textContent = formatValue(env.hum, '');
+    document.getElementById('sensor-gas').textContent = formatValue(env.gas_v, '');
+    document.getElementById('sensor-last-ts').textContent = env.ts || '-';
+
+    var h = statusData.health || {};
+    document.getElementById('health-cpu').textContent = formatValue(h.cpu_percent, '%');
+    document.getElementById('health-ram').textContent = formatValue(h.mem_percent, '%');
+    document.getElementById('health-disk').textContent = formatValue(h.disk_percent, '%');
+    document.getElementById('health-inode').textContent = formatValue(h.inode_percent, '%');
+    document.getElementById('health-ts').textContent = h.ts || '-';
+
+    var audio = (statusData.audio_summary && statusData.audio_summary.last_segment) || {};
+    document.getElementById('audio-label').textContent = audio.label || '-';
+    document.getElementById('audio-duration').textContent = audio.duration_sec ? audio.duration_sec.toFixed(1) + 's' : '-';
+    document.getElementById('audio-ts').textContent = audio.ts || '-';
+
+    drawChart();
+  }
+
+  function refreshStatus() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/dashboard_state', true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        try {
+          statusData = JSON.parse(xhr.responseText);
+          renderStatus();
+        } catch (e) {
+          console.error('parse error', e);
+        }
+      }
+    };
+    xhr.send();
+  }
+
+  renderStatus();
+  setInterval(refreshStatus, 10000);
+</script>
 {% endblock %}
-
