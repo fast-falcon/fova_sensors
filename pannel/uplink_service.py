@@ -36,7 +36,7 @@ from panel_sensors_local import get_latest_env, EnvSnapshot
 from panel_audio_local import get_last_audio_segment
 from panel_health import get_health_status, update_health_status
 
-DEFAULT_PUSH_INTERVAL = 2.0  # ثانیه
+DEFAULT_PUSH_INTERVAL = 10.0  # ثانیه
 KV_CENTRAL_PUBKEY = "central:pubkey_pem"
 KV_PUSH_INTERVAL = "sensor:push_interval"
 
@@ -321,3 +321,4 @@ if __name__ == "__main__":
         stop_uplink()
         print("uplink stop called.")
     print("✅ uplink_service basic test (از نظر ساختار) OK")
+
