@@ -60,7 +60,7 @@ def run_central():
     print("[central_role] monitor_loop started")
 
     # سنسور محیطی خود باکس (همان central_id)
-    start_sensor_reader(sensor_id=central_id, interval_sec=2.0)
+    start_sensor_reader(sensor_id=central_id, interval_sec=5.0)
     print("[central_role] sensor_reader for central started")
 
     # ضبط صدا روی خود باکس
@@ -87,3 +87,4 @@ if __name__ == "__main__":
     print("=== central_role test ===")
     print("این تست فرض می‌کند panel_config.json با role='central' تنظیم شده باشد.")
     run_central()
+

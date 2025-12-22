@@ -92,11 +92,6 @@
     { key: 'hum', name: 'رطوبت', unit: '%', icon: '💧', color: '#0ea5e9', threshold: { warning: 70, danger: 85 } },
     { key: 'gas_v', name: 'بو/دود', unit: 'V', icon: '💨', color: '#f97316', threshold: { warning: 2.0, danger: 3.5 } },
   ];
-  var chartState = {};
-  var POLL_INTERVAL_MS = 1200;
-  var SMOOTH_STEPS = 12;
-  var SMOOTH_TICK_MS = 120;
-  var MAX_HISTORY_POINTS = 120;
 
   function fmt(val, unit, decimals) {
     if (val === null || val === undefined) { return '--'; }
@@ -113,51 +108,6 @@
     }
   }
 
-  function ensureChartState(key) {
-    if (!chartState[key]) {
-      chartState[key] = { current: [], target: [], labels: [], step: 0, initialized: false };
-    }
-    return chartState[key];
-  }
-
-  function cleanSeries(values) {
-    var arr = Array.isArray(values) ? values.slice(-MAX_HISTORY_POINTS) : [];
-    return arr.map(function(v) {
-      var num = Number(v);
-      return isNaN(num) ? null : num;
-    });
-  }
-
-  function cleanLabels(labels, lengthHint) {
-    var lbls = Array.isArray(labels) ? labels.slice(-MAX_HISTORY_POINTS) : [];
-    while (lbls.length < lengthHint) { lbls.unshift(''); }
-    return lbls.slice(-MAX_HISTORY_POINTS);
-  }
-
-  function setChartTarget(metricKey, labels, values, color) {
-    var state = ensureChartState(metricKey);
-    var paddedTarget = cleanSeries(values || []);
-    var paddedCurrent = state.initialized ? state.current.slice() : paddedTarget.slice();
-    var maxLen = Math.max(paddedTarget.length, paddedCurrent.length);
-    while (paddedTarget.length < maxLen) { paddedTarget.unshift(null); }
-    while (paddedCurrent.length < maxLen) { paddedCurrent.unshift(null); }
-    var paddedLabels = cleanLabels(labels || [], maxLen);
-
-    state.current = paddedCurrent.slice(-MAX_HISTORY_POINTS);
-    state.target = paddedTarget.slice(-MAX_HISTORY_POINTS);
-    state.labels = paddedLabels.slice(-MAX_HISTORY_POINTS);
-    state.step = 0;
-    state.initialized = true;
-
-    drawChart('chart-' + metricKey, state.labels, state.current, color);
-  }
-
-  function lerpValue(current, target, factor) {
-    if (target === null || target === undefined) { return current === undefined ? null : current; }
-    if (current === null || current === undefined) { return target; }
-    return current + (target - current) * factor;
-  }
-
   function statusFromThreshold(value, threshold) {
     if (value === null || value === undefined) { return 'warning'; }
     var num = Number(value);
@@ -170,36 +120,21 @@
   function drawChart(canvasId, labels, values, color) {
     var canvas = document.getElementById(canvasId);
     if (!canvas) { return; }
+    destroyChart(canvasId);
     var chartLabels = labels && labels.length ? labels.slice() : values.map(function() { return ''; });
-    var existing = chartInstances[canvasId];
-    if (!existing) {
-      chartInstances[canvasId] = new Chart(canvas, {
-        type: 'line',
-        data: { labels: chartLabels, datasets: [{
-          data: values,
-          borderColor: color,
-          backgroundColor: color,
-          fill: false,
-          borderWidth: 3,
-          tension: 0.35,
-          pointRadius: 0,
-          spanGaps: true
-        }]},
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: { duration: 450, easing: 'linear' },
-          plugins: { legend: { display: false }, tooltip: { rtl: true } },
-          scales: { x: { display: false }, y: { beginAtZero: false } }
-        }
-      });
-      return;
-    }
-
-    existing.data.labels = chartLabels;
-    existing.data.datasets[0].data = values;
-    existing.options.animation = { duration: 450, easing: 'linear' };
-    existing.update();
+    chartInstances[canvasId] = new Chart(canvas, {
+      type: 'line',
+      data: { labels: chartLabels, datasets: [{
+        data: values,
+        borderColor: color,
+        backgroundColor: color,
+        fill: false,
+        borderWidth: 3,
+        tension: 0.35,
+        pointRadius: 0
+      }]},
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { rtl: true } }, scales: { x: { display: false }, y: { beginAtZero: false } } }
+    });
   }
 
   function renderMeta() {
@@ -215,7 +150,6 @@
     var grid = document.getElementById('sensor-charts');
     if (!grid) { return; }
     var history = sensorData.history || { labels: [], temp: [], hum: [], gas_v: [] };
-    metricConfig.forEach(function(metric) { destroyChart('chart-' + metric.key); });
     grid.innerHTML = metricConfig.map(function(metric) {
       var latest = sensorData.env ? sensorData.env[metric.key] : null;
       return '' +
@@ -228,11 +162,13 @@
         '</div>';
     }).join('');
 
-    metricConfig.forEach(function(metric) {
-      var values = history[metric.key] || [];
-      var labels = history.labels || [];
-      setChartTarget(metric.key, labels, values, metric.color);
-    });
+    setTimeout(function() {
+      metricConfig.forEach(function(metric) {
+        var values = history[metric.key] || [];
+        var labels = history.labels || [];
+        drawChart('chart-' + metric.key, labels, values, metric.color);
+      });
+    }, 30);
   }
 
   function renderSystem() {
@@ -282,47 +218,9 @@
     box.innerHTML = '<div class="muted">آخرین segment: ' + (seg.ts || '--') + ' | مدت: ' + fmt(seg.duration_sec, 's', 1) + ' | برچسب: ' + (seg.label || '-') + '</div><div class="muted">برای دیدن همه صداها به تب صداها بروید.</div>';
   }
 
-  function stepCharts() {
-    metricConfig.forEach(function(metric) {
-      var state = chartState[metric.key];
-      if (!state || !state.initialized) { return; }
-      var maxLen = Math.max(state.target.length, state.current.length);
-      while (state.current.length < maxLen) { state.current.unshift(null); }
-      while (state.target.length < maxLen) { state.target.unshift(null); }
-      while (state.labels.length < maxLen) { state.labels.unshift(''); }
-      var factor = Math.min(1, (state.step + 1) / SMOOTH_STEPS);
-      var blended = [];
-      for (var i = 0; i < maxLen; i++) {
-        blended.push(lerpValue(state.current[i], state.target[i], factor));
-      }
-      state.current = blended.slice(-MAX_HISTORY_POINTS);
-      state.labels = state.labels.slice(-MAX_HISTORY_POINTS);
-      state.step = Math.min(state.step + 1, SMOOTH_STEPS);
-      drawChart('chart-' + metric.key, state.labels, state.current, metric.color);
-    });
-  }
-
-  function applyPayload(payload) {
-    if (!payload) { return; }
-    sensorData = payload;
-    renderMeta();
-    renderCharts();
-    renderSystem();
-    renderAudioBox();
-  }
-
-  function fetchDashboard() {
-    fetch('/api/dashboard_state', { cache: 'no-store' })
-      .then(function(r) { return r.json(); })
-      .then(applyPayload)
-      .catch(function(err) { console.warn('dashboard fetch', err); });
-  }
-
   renderMeta();
   renderCharts();
   renderSystem();
   renderAudioBox();
-  setInterval(stepCharts, SMOOTH_TICK_MS);
-  setInterval(fetchDashboard, POLL_INTERVAL_MS);
 </script>
 {% endblock %}

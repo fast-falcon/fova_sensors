@@ -192,7 +192,7 @@
   var DISCONNECTED_FILL = '#e2e8f0';
   var MAX_ALLOWED_GAP = 2;
   var MAX_HISTORY_POINTS = 90;
-  var POLL_INTERVAL_MS = 1200;
+  var POLL_INTERVAL_MS = 3000;
   var sensorLayoutKey = null;
 
   function sensorColor(idx) { return palette[idx % palette.length]; }
@@ -338,7 +338,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: { duration: 450, easing: 'linear' },
+          animation: false,
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -365,8 +365,7 @@
 
     instance.data.labels = labels;
     instance.data.datasets = datasets;
-    instance.options.animation = { duration: 450, easing: 'linear' };
-    instance.update();
+    instance.update('none');
   }
 
   function statusFromThreshold(value, threshold, forceDisconnected) {
