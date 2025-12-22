@@ -178,11 +178,6 @@
 
 <script>
   var chartInstances = {};
-  var chartBuffers = {};
-  var chartLayoutReady = false;
-  var chartMaxPoints = 240;
-  var chartGapThreshold = 2;
-  var sensorOrderCache = [];
   var dashboardData = { central: {{ central|tojson }}, sensors: {{ sensors|tojson }} };
 
   var metricConfig = [
@@ -210,202 +205,96 @@
     }
   }
 
-  function ensureBuffer(key) {
-    if (!chartBuffers[key]) {
-      chartBuffers[key] = { labels: [], datasets: {}, maxPoints: chartMaxPoints };
+  function padSeries(values, target) {
+    var arr = Array.isArray(values) ? values.slice(-target) : [];
+    while (arr.length < target) { arr.unshift(null); }
+    return arr;
+  }
+
+  function pickLabels(target) {
+    var labels = dashboardData.central.history && dashboardData.central.history.labels ? dashboardData.central.history.labels.slice(-target) : [];
+    if (labels.length === 0) {
+      labels = [];
+      for (var i = 0; i < target; i++) { labels.push(''); }
     }
-    return chartBuffers[key];
+    while (labels.length < target) { labels.unshift(''); }
+    return labels;
   }
 
-  function datasetKeyForSensor(sensor, idx) {
-    return sensor.sensor_id || ('sensor-' + idx);
-  }
-
-  function ensureDataset(buffer, key, opts) {
-    var ds = buffer.datasets[key];
-    if (!ds) {
-      ds = buffer.datasets[key] = {
-        key: key,
-        label: opts.label,
-        color: opts.color,
-        fill: !!opts.fill,
-        sensorId: opts.sensorId,
-        data: [],
-        lastValue: null,
-        gapCount: 0
-      };
-      for (var i = ds.data.length; i < buffer.labels.length; i++) {
-        ds.data.push({ y: null, disconnected: true });
-      }
-    } else {
-      ds.label = opts.label;
-      ds.color = opts.color;
-      ds.fill = !!opts.fill;
-      ds.sensorId = opts.sensorId;
-    }
-    return ds;
-  }
-
-  function appendPoint(ds, value) {
-    var hasValue = value !== null && value !== undefined && !isNaN(Number(value));
-    if (hasValue) {
-      ds.lastValue = Number(value);
-      ds.gapCount = 0;
-      ds.data.push({ y: ds.lastValue, disconnected: false });
-    } else {
-      ds.gapCount += 1;
-      var yVal = ds.lastValue;
-      var disconnected = ds.gapCount > chartGapThreshold || yVal === null;
-      ds.data.push({ y: yVal, disconnected: disconnected });
-    }
-  }
-
-  function trimBuffer(buffer) {
-    if (buffer.labels.length <= buffer.maxPoints) { return; }
-    var removeCount = buffer.labels.length - buffer.maxPoints;
-    buffer.labels.splice(0, removeCount);
-    Object.keys(buffer.datasets).forEach(function(k) {
-      buffer.datasets[k].data.splice(0, removeCount);
-    });
-  }
-
-  function buildDatasets(buffer, unit, key) {
-    return Object.keys(buffer.datasets).map(function(dsKey, dsIdx) {
-      var ds = buffer.datasets[dsKey];
-      var baseColor = ds.color;
-      var fillColor = ds.fill ? baseColor + '30' : baseColor;
-      return {
-        label: ds.label,
-        data: ds.data,
-        baseColor: baseColor,
-        borderColor: baseColor,
-        backgroundColor: fillColor,
-        fill: ds.fill,
-        borderWidth: ds.fill ? 3 : 2,
-        tension: 0.35,
-        pointRadius: 0,
-        spanGaps: true,
-        parsing: { yAxisKey: 'y' },
-        segment: {
-          borderColor: function(ctx) {
-            var disconnected = ctx.p1.raw && ctx.p1.raw.disconnected;
-            return disconnected ? '#cbd5e1' : baseColor;
-          },
-          borderDash: function(ctx) {
-            var disconnected = ctx.p1.raw && ctx.p1.raw.disconnected;
-            return disconnected ? [6, 4] : undefined;
-          }
-        },
-        order: dsKey === 'central' ? 0 : (dsIdx + 1)
-      };
-    });
-  }
-
-  function updateChartForMetric(metric) {
-    var key = metric.key;
-    var buffer = ensureBuffer(key);
+  function getMaxHistoryLength(key) {
+    var maxLen = 0;
     var hist = dashboardData.central.history || {};
-    var labels = hist.labels || [];
-    var lastLabel = buffer.labels[buffer.labels.length - 1];
-
-    if (lastLabel && labels.indexOf(lastLabel) === -1) {
-      buffer.labels = [];
-      Object.keys(buffer.datasets).forEach(function(dsKey) {
-        buffer.datasets[dsKey].data = [];
-        buffer.datasets[dsKey].lastValue = null;
-        buffer.datasets[dsKey].gapCount = 0;
-      });
-    }
-
-    var activeKeys = ['central'];
-    ensureDataset(buffer, 'central', {
-      label: dashboardData.central.ident.cluster_name || 'مرکزی',
-      color: palette[0],
-      fill: true,
-      sensorId: null
-    });
-
-    var sensorSeries = {};
-    dashboardData.sensors.forEach(function(s, idx) {
-      var sensorKey = datasetKeyForSensor(s, idx);
-      activeKeys.push(sensorKey);
-      ensureDataset(buffer, sensorKey, {
-        label: s.sensor_name || s.sensor_id || 'سنسور',
-        color: sensorColor(idx + 1),
-        fill: false,
-        sensorId: s.sensor_id
-      });
-      sensorSeries[sensorKey] = (s.history && s.history[key]) || [];
-    });
-
-    Object.keys(buffer.datasets).forEach(function(dsKey) {
-      if (activeKeys.indexOf(dsKey) === -1) {
-        delete buffer.datasets[dsKey];
+    if (hist[key] && hist[key].length > maxLen) { maxLen = hist[key].length; }
+    dashboardData.sensors.forEach(function(s) {
+      if (s.history && s.history[key] && s.history[key].length > maxLen) {
+        maxLen = s.history[key].length;
       }
     });
+    return Math.max(maxLen, 10);
+  }
 
-    var startIdx = 0;
-    if (lastLabel) {
-      var foundIdx = labels.lastIndexOf(lastLabel);
-      startIdx = foundIdx >= 0 ? foundIdx + 1 : 0;
-    }
-
-    var centralValues = (dashboardData.central.history && dashboardData.central.history[key]) || [];
-    for (var i = startIdx; i < labels.length; i++) {
-      var lbl = labels[i];
-      buffer.labels.push(lbl);
-
-      appendPoint(buffer.datasets['central'], centralValues[i]);
-
-      activeKeys.forEach(function(sensorKey) {
-        if (sensorKey === 'central') { return; }
-        var series = sensorSeries[sensorKey] || [];
-        appendPoint(buffer.datasets[sensorKey], series[i]);
-      });
-    }
-
-    trimBuffer(buffer);
-
-    var canvasId = 'chart-' + key;
+  function buildComparisonChart(canvasId, key, unit) {
     var canvas = document.getElementById(canvasId);
     if (!canvas) { return; }
+    destroyChart(canvasId);
 
-    var datasets = buildDatasets(buffer, metric.unit, key);
-    if (!chartInstances[canvasId]) {
-      chartInstances[canvasId] = new Chart(canvas, {
-        type: 'line',
-        data: { labels: buffer.labels, datasets: datasets },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              rtl: true,
-              callbacks: {
-                label: function(ctx) {
-                  var l = ctx.dataset.label || '';
-                  var v = ctx.parsed.y;
-                  if (l) { l += ': '; }
-                  l += v === null ? '-' : fmt(v, metric.unit, metric.key === 'gas_v' ? 2 : 1);
-                  return l;
-                }
+    var targetLen = getMaxHistoryLength(key);
+    var labels = pickLabels(targetLen);
+    var datasets = [];
+    var centralValues = padSeries((dashboardData.central.history && dashboardData.central.history[key]) || [], targetLen);
+
+    datasets.push({
+      label: dashboardData.central.ident.cluster_name,
+      data: centralValues,
+      borderColor: palette[0],
+      backgroundColor: palette[0] + '30',
+      borderWidth: 3,
+      tension: 0.35,
+      fill: true,
+      pointRadius: 0
+    });
+
+    dashboardData.sensors.forEach(function(sensor, idx) {
+      var series = padSeries(sensor.history && sensor.history[key] ? sensor.history[key] : [], targetLen);
+      datasets.push({
+        label: sensor.sensor_name || sensor.sensor_id,
+        data: series,
+        borderColor: sensorColor(idx + 1),
+        backgroundColor: sensorColor(idx + 1),
+        borderWidth: 2,
+        tension: 0.35,
+        fill: false,
+        pointRadius: 0
+      });
+    });
+
+    chartInstances[canvasId] = new Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            rtl: true,
+            callbacks: {
+              label: function(ctx) {
+                var l = ctx.dataset.label || '';
+                var v = ctx.parsed.y;
+                if (l) { l += ': '; }
+                l += v === null ? '-' : fmt(v, unit, key === 'gas_v' ? 2 : 1);
+                return l;
               }
             }
-          },
-          scales: {
-            x: { display: false },
-            y: { beginAtZero: false }
           }
+        },
+        scales: {
+          x: { display: false },
+          y: { beginAtZero: false }
         }
-      });
-    } else {
-      var chart = chartInstances[canvasId];
-      chart.data.labels = buffer.labels.slice();
-      chart.data.datasets = datasets;
-      chart.update('none');
-    }
+      }
+    });
   }
 
   function statusFromThreshold(value, threshold, forceDisconnected) {
@@ -421,50 +310,30 @@
   function renderSensorCards() {
     var grid = document.getElementById('sensors-grid');
     if (!grid) { return; }
-    var latestSensorOrder = dashboardData.sensors.map(function(s, idx) { return datasetKeyForSensor(s, idx); });
-    var needsRebuild = !chartLayoutReady || latestSensorOrder.length !== sensorOrderCache.length;
-    if (!needsRebuild) {
-      for (var j = 0; j < latestSensorOrder.length; j++) {
-        if (latestSensorOrder[j] !== sensorOrderCache[j]) { needsRebuild = true; break; }
-      }
-    }
-
-    if (needsRebuild) {
-      Object.keys(chartInstances).forEach(destroyChart);
-      chartBuffers = {};
-      var html = '';
-      metricConfig.forEach(function(metric) {
-        var canvasId = 'chart-' + metric.key;
-        var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
-        html += '' +
-          '<div class="sensor-box">' +
-            '<div class="sensor-box-header">' +
-              '<div class="sensor-box-title"><span style="font-size:1.3em">' + metric.icon + '</span><span>' + metric.name + '</span></div>' +
-              '<div class="sensor-box-value" id="value-' + metric.key + '">' + fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1) + '</div>' +
-            '</div>' +
-            '<div class="chart-container"><canvas id="' + canvasId + '"></canvas></div>' +
-            '<div class="chart-labels" id="labels-' + metric.key + '"></div>' +
-          '</div>';
-      });
-      grid.innerHTML = html;
-      chartLayoutReady = true;
-      sensorOrderCache = latestSensorOrder;
-    }
-
-    metricConfig.forEach(function(metric) {
+    var html = '';
+    metricConfig.forEach(function(metric, idx) {
+      var canvasId = 'chart-' + metric.key;
       var centralVal = dashboardData.central.env ? dashboardData.central.env[metric.key] : null;
-      var valEl = document.getElementById('value-' + metric.key);
-      if (valEl) {
-        valEl.textContent = fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1);
-      }
-      var labelsEl = document.getElementById('labels-' + metric.key);
-      if (labelsEl) {
-        labelsEl.innerHTML =
-          '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + palette[0] + '; background:' + palette[0] + '30;"></div><span class="chart-label-text">' + (dashboardData.central.ident.cluster_name || 'مرکزی') + '</span></div>' +
-          dashboardData.sensors.map(function(s, sidx) { return '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + sensorColor(sidx + 1) + ';"></div><span class="chart-label-text">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</span></div>'; }).join('');
-      }
-      updateChartForMetric(metric);
+      var status = statusFromThreshold(centralVal, metric.threshold, false);
+      html += '' +
+        '<div class="sensor-box">' +
+          '<div class="sensor-box-header">' +
+            '<div class="sensor-box-title"><span style="font-size:1.3em">' + metric.icon + '</span><span>' + metric.name + '</span></div>' +
+            '<div class="sensor-box-value">' + fmt(centralVal, metric.unit, metric.key === 'gas_v' ? 2 : 1) + '</div>' +
+          '</div>' +
+          '<div class="chart-container"><canvas id="' + canvasId + '"></canvas></div>' +
+          '<div class="chart-labels">' +
+            '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + palette[0] + '; background:' + palette[0] + '30;"></div><span class="chart-label-text">' + (dashboardData.central.ident.cluster_name || 'مرکزی') + '</span></div>' +
+            dashboardData.sensors.map(function(s, sidx) { return '<div class="chart-label"><div class="chart-label-dot" style="border-color:' + sensorColor(sidx + 1) + ';"></div><span class="chart-label-text">' + (s.sensor_name || s.sensor_id || 'سنسور') + '</span></div>'; }).join('') +
+          '</div>' +
+        '</div>';
     });
+    grid.innerHTML = html;
+    setTimeout(function() {
+      metricConfig.forEach(function(metric) {
+        buildComparisonChart('chart-' + metric.key, metric.key, metric.unit);
+      });
+    }, 30);
   }
 
   function renderDevicePills() {
@@ -598,6 +467,6 @@
   }
 
   renderAll();
-  setInterval(fetchDashboard, 3500);
+  setInterval(fetchDashboard, 8000);
 </script>
 {% endblock %}
