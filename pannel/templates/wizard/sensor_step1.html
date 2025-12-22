@@ -1,47 +1,43 @@
-<!DOCTYPE html>
-<html lang="fa">
-<head>
-  <meta charset="UTF-8" />
-  <title>پیکربندی سنسور - گام ۱</title>
-</head>
-<body>
+{% extends "wizard/base.html" %}
+{% block title %}پیکربندی سنسور - گام ۱{% endblock %}
+{% block content %}
   <h1>گام ۱: تنظیمات سنسور</h1>
+  <p>مشخصات اتصال و اطلاعات سنسور را وارد کنید.</p>
   {% if errors %}
-    <ul style="color:red">
-      {% for err in errors %}<li>{{ err }}</li>{% endfor %}
-    </ul>
+    <div class="alert">
+      <ul style="margin:0; padding-right:18px;">
+        {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+      </ul>
+    </div>
   {% endif %}
   <form method="post">
-    <div>
-      <label>نام سنسور:</label>
-      <input type="text" name="sensor_name" value="{{ sensor_name }}" required />
+    <label>نام سنسور</label>
+    <input type="text" name="sensor_name" value="{{ sensor_name }}" required />
+
+    <label>SSID وای‌فای مرکزی</label>
+    <input type="text" name="wifi_ssid" value="{{ wifi_ssid }}" required />
+
+    <label>رمز وای‌فای مرکزی</label>
+    <input type="password" name="wifi_password" value="{{ wifi_password }}" required />
+
+    <label>هاست باکس مرکزی</label>
+    <input type="text" name="central_host" value="{{ central_host }}" required />
+
+    <div class="flex">
+      <div style="flex:1; min-width:160px;">
+        <label>پورت HTTP مرکزی</label>
+        <input type="number" name="central_http_port" value="{{ central_http_port }}" />
+      </div>
+      <div style="flex:1; min-width:160px;">
+        <label>بازه ضبط صدا (ثانیه)</label>
+        <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" />
+      </div>
     </div>
-    <div>
-      <label>SSID وای‌فای مرکزی:</label>
-      <input type="text" name="wifi_ssid" value="{{ wifi_ssid }}" required />
+
+    <label><input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %}> ارسال آنلاین به سرور اصلی</label>
+
+    <div class="flex" style="margin-top:12px;">
+      <button type="submit">مرحله بعد</button>
     </div>
-    <div>
-      <label>رمز وای‌فای مرکزی:</label>
-      <input type="password" name="wifi_password" value="{{ wifi_password }}" required />
-    </div>
-    <div>
-      <label>آدرس مرکزی:</label>
-      <input type="text" name="central_host" value="{{ central_host }}" required />
-    </div>
-    <div>
-      <label>پورت HTTP مرکزی:</label>
-      <input type="number" name="central_http_port" value="{{ central_http_port }}" required />
-    </div>
-    <div>
-      <label>بازه ضبط صدا (ثانیه):</label>
-      <input type="number" name="audio_segment_seconds" value="{{ audio_segment_seconds }}" min="1" required />
-    </div>
-    <div>
-      <label>حالت آنلاین:</label>
-      <input type="checkbox" name="online_enabled" {% if online_enabled %}checked{% endif %} />
-      <span>در صورت غیرفعال کردن، باکس در حالت محلی بدون uplink کار می‌کند.</span>
-    </div>
-    <button type="submit">تایید و ادامه</button>
   </form>
-</body>
-</html>
+{% endblock %}

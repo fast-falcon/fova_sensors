@@ -36,7 +36,7 @@ from panel_sensors_local import get_latest_env
 from panel_health import get_health_status
 from panel_audio_local import list_audio_segments, get_last_audio_segment
 from panel_net_common import parse_basic_auth_header
-from panel_db import init_db
+from panel_db import init_db, get_recent_sensor_samples
 
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -62,6 +62,37 @@ def _get_basic_auth_creds() -> Optional[Dict[str, str]]:
     if not u or not p:
         return None
     return {"user": u, "pass": p}
+
+
+def _build_env_history(sensor_id: str, limit: int = 30) -> Dict[str, Any]:
+    samples = get_recent_sensor_samples(sensor_id, limit)
+    labels = []
+    temp = []
+    hum = []
+    gas_v = []
+    gas_dv = []
+
+    for ts_iso, data in samples:
+        labels.append((ts_iso or "").replace("T", " ").replace("Z", ""))
+
+        def _val(key):
+            try:
+                return float(data.get(key)) if data.get(key) is not None else None
+            except Exception:
+                return None
+
+        temp.append(_val("temp"))
+        hum.append(_val("hum"))
+        gas_v.append(_val("gas_v"))
+        gas_dv.append(_val("gas_dv"))
+
+    return {
+        "labels": labels,
+        "temp": temp,
+        "hum": hum,
+        "gas_v": gas_v,
+        "gas_dv": gas_dv,
+    }
 
 
 def require_basic_auth(view_func):
@@ -141,6 +172,7 @@ def _build_status_dict() -> Dict[str, Any]:
         "env": env,
         "health": health_dict,
         "audio_summary": audio_summary,
+        "history": _build_env_history(ident["box_id"]),
     }
 
 
@@ -148,6 +180,7 @@ def _build_status_dict() -> Dict[str, Any]:
 
 @app.route("/")
 def sensor_dashboard():
+    init_db()
     ident = _get_sensor_identity()
     status = _build_status_dict()
     return render_template("sensor/dashboard.html", ident=ident, status=status)
@@ -155,6 +188,7 @@ def sensor_dashboard():
 
 @app.route("/audio")
 def sensor_audio_list():
+    init_db()
     ident = _get_sensor_identity()
     segments = list_audio_segments(ident["box_id"], limit=100)
     return render_template("sensor/audio_list.html", ident=ident, segments=segments)

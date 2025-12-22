@@ -1,88 +1,133 @@
 {% extends "sensor/base_sensor.html" %}
 {% block title %}وضعیت سنسور - {{ ident.sensor_name }}{% endblock %}
 
-{% block content %}
-<div class="card">
-  <h2>وضعیت محیطی</h2>
-  {% set env = status.env %}
-  <p style="font-size:13px; opacity:0.8;">
-    آخرین نمونه: {{ env.ts or "نامشخص" }}
-  </p>
-  <table>
-    <tr>
-      <th>پارامتر</th>
-      <th>مقدار</th>
-    </tr>
-    <tr>
-      <td>دما (°C)</td>
-      <td>{{ env.temp if env.temp is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>رطوبت (%)</td>
-      <td>{{ env.hum if env.hum is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>گاز (v)</td>
-      <td>{{ env.gas_v if env.gas_v is not none else "-" }}</td>
-    </tr>
-    <tr>
-      <td>Δگاز</td>
-      <td>
-        {{ env.gas_dv if env.gas_dv is not none else "-" }}
-        {% if env.gas_high %}
-          <span class="badge crit">HIGH</span>
-        {% endif %}
-      </td>
-    </tr>
-  </table>
-</div>
-
-<div class="card">
-  <h2>سلامت سیستم</h2>
-  {% if status.health %}
-    {% set h = status.health %}
-    <p style="font-size:13px; opacity:0.8;">
-      آخرین بروزرسانی: {{ h.ts or "نامشخص" }}
-    </p>
-    <table>
-      <tr><th>پارامتر</th><th>مقدار</th></tr>
-      <tr><td>CPU</td><td>{{ "%.1f"|format(h.cpu_percent) }}%</td></tr>
-      <tr><td>RAM</td><td>{{ "%.1f"|format(h.mem_percent) }}%</td></tr>
-      <tr><td>Disk</td><td>{{ "%.1f"|format(h.disk_percent) }}%</td></tr>
-      <tr><td>Inode</td><td>{{ "%.1f"|format(h.inode_percent) }}%</td></tr>
-    </table>
-    {% if h.last_issue %}
-      <p style="margin-top:8px; font-size:12px;">
-        آخرین مشکل ثبت‌شده:
-        <span class="badge warn">{{ h.last_issue }}</span>
-      </p>
-    {% endif %}
-  {% else %}
-    <p>هنوز اطلاعات سلامت ثبت نشده است.</p>
-  {% endif %}
-</div>
-
-<div class="card">
-  <h2>خلاصه‌ی صدا</h2>
-  {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
-  {% if a %}
-    <p style="font-size:13px; opacity:0.8;">
-      آخرین segment ثبت‌شده:
-    </p>
-    <table>
-      <tr><th>زمان</th><th>مدت (ثانیه)</th><th>برچسب</th></tr>
-      <tr>
-        <td>{{ a.ts }}</td>
-        <td>{{ "%.1f"|format(a.duration_sec) }}</td>
-        <td>{{ a.label if a.label else "-" }}</td>
-      </tr>
-    </table>
-    <p style="font-size:12px; margin-top:8px;">
-      برای دیدن و شنیدن همه‌ی صداها به تب <a href="{{ url_for('sensor_audio_list') }}">صداها</a> برو.
-    </p>
-  {% else %}
-    <p>هنوز هیچ صدایی ثبت نشده است.</p>
-  {% endif %}
-</div>
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .chart-box { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; background: #f8fafc; }
+    .chart-holder { height: 200px; }
+    .muted { color: #475569; font-size: 12px; }
+  </style>
 {% endblock %}
 
+{% block content %}
+<div class="card">
+  <h3>وضعیت محیطی</h3>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">دما (°C)</div><div class="value" id="env-temp">-</div><div class="muted" id="env-ts">--:--</div></div>
+    <div class="kpi"><div class="label">رطوبت (%)</div><div class="value" id="env-hum">-</div><div class="muted" id="env-ts-hum">--:--</div></div>
+    <div class="kpi"><div class="label">گاز (V)</div><div class="value" id="env-gas">-</div><div class="muted" id="env-ts-gas">--:--</div></div>
+    <div class="kpi"><div class="label">Δ گاز</div><div class="value" id="env-dv">-</div><div class="muted" id="env-ts-dv">--:--</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>سلامت سیستم</h3>
+  {% if status.health %}
+    <table>
+      <tr><th>پارامتر</th><th>مقدار</th></tr>
+      <tr><td>CPU</td><td>{{ "%.1f"|format(status.health.cpu_percent) }}%</td></tr>
+      <tr><td>RAM</td><td>{{ "%.1f"|format(status.health.mem_percent) }}%</td></tr>
+      <tr><td>Disk</td><td>{{ "%.1f"|format(status.health.disk_percent) }}%</td></tr>
+      <tr><td>Inode</td><td>{{ "%.1f"|format(status.health.inode_percent) }}%</td></tr>
+    </table>
+    {% if status.health.last_issue %}
+      <p class="muted">آخرین مشکل: {{ status.health.last_issue }}</p>
+    {% endif %}
+  {% else %}
+    <p class="muted">هنوز اطلاعات سلامت ثبت نشده است.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>تاریخچه سنسور</h3>
+  <div class="grid">
+    <div class="chart-box">
+      <div class="muted">دما</div>
+      <div class="chart-holder"><canvas id="sensor-temp-chart"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="muted">رطوبت</div>
+      <div class="chart-holder"><canvas id="sensor-hum-chart"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="muted">گاز</div>
+      <div class="chart-holder"><canvas id="sensor-gas-chart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>خلاصه‌ی صدا</h3>
+  {% set a = status.audio_summary.last_segment if status.audio_summary and status.audio_summary.last_segment is defined else None %}
+  {% if a %}
+    <p class="muted">آخرین segment: {{ a.ts }} | مدت: {{ "%.1f"|format(a.duration_sec) }} ثانیه | برچسب: {{ a.label if a.label else '-' }}</p>
+    <p class="muted">برای دیدن همه صداها به تب صداها بروید.</p>
+  {% else %}
+    <p class="muted">هنوز صدایی ثبت نشده است.</p>
+  {% endif %}
+</div>
+
+<script>
+  var chartInstances = {};
+  var sensorData = {{ status|tojson }};
+
+  function fmt(val, decimals) {
+    if (val === null || val === undefined) { return '-'; }
+    var d = typeof decimals === 'number' ? decimals : (Math.abs(val) < 1 ? 2 : 1);
+    var num = Number(val);
+    if (isNaN(num)) { return '-'; }
+    return num.toFixed(d);
+  }
+
+  function destroyChart(id) {
+    if (chartInstances[id]) {
+      chartInstances[id].destroy();
+      chartInstances[id] = null;
+    }
+  }
+
+  function drawChart(id, labels, values, color) {
+    var canvas = document.getElementById(id);
+    if (!canvas) { return; }
+    destroyChart(id);
+    if (labels.length === 0) { labels = values.map(function() { return ''; }); }
+    chartInstances[id] = new Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: [{
+        data: values,
+        borderColor: color,
+        backgroundColor: color,
+        fill: false,
+        borderWidth: 3,
+        tension: 0.35,
+        pointRadius: 0
+      }]},
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { beginAtZero: false } } }
+    });
+  }
+
+  function renderEnv() {
+    var env = sensorData.env || {};
+    document.getElementById('env-temp').textContent = fmt(env.temp) + '°';
+    document.getElementById('env-hum').textContent = fmt(env.hum) + '%';
+    document.getElementById('env-gas').textContent = fmt(env.gas_v, 2) + 'V';
+    document.getElementById('env-dv').textContent = fmt(env.gas_dv, 2);
+    document.getElementById('env-ts').textContent = env.ts || '--:--';
+    document.getElementById('env-ts-hum').textContent = env.ts || '--:--';
+    document.getElementById('env-ts-gas').textContent = env.ts || '--:--';
+    document.getElementById('env-ts-dv').textContent = env.ts || '--:--';
+  }
+
+  function renderCharts() {
+    var history = sensorData.history || { labels: [], temp: [], hum: [], gas_v: [] };
+    drawChart('sensor-temp-chart', history.labels || [], history.temp || [], '#2563eb');
+    drawChart('sensor-hum-chart', history.labels || [], history.hum || [], '#0ea5e9');
+    drawChart('sensor-gas-chart', history.labels || [], history.gas_v || [], '#f97316');
+  }
+
+  renderEnv();
+  renderCharts();
+</script>
+{% endblock %}

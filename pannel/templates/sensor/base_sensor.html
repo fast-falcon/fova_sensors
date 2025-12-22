@@ -1,119 +1,78 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>{% block title %}سنسور محیطی{% endblock %}</title>
   <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --primary: #2563eb;
+      --muted: #475569;
+      --border: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
-      font-family: sans-serif;
-      direction: rtl;
-      background: #0f1722;
-      color: #f5f5f5;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
+      background: var(--bg);
+      color: #0f172a;
+      direction: rtl;
     }
-    .container {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 16px;
+
+    .page { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+
+    .topbar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+      margin-bottom: 16px;
     }
-    .card {
-      background: #111827;
-      border-radius: 12px;
-      padding: 16px;
-      margin-top: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    }
-    a {
-      color: #00b894;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    .nav {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
-    .nav a {
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: #1f2933;
-      font-size: 13px;
-    }
-    .nav a.active {
-      background: #00b894;
-      color: #fff;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      background: #1f2933;
-      color: #fff;
-    }
-    .badge.ok {
-      background: #00b894;
-    }
-    .badge.warn {
-      background: #f1c40f;
-      color: #111;
-    }
-    .badge.crit {
-      background: #e74c3c;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    th, td {
-      padding: 6px 8px;
-      border-bottom: 1px solid #1f2933;
-    }
-    th {
-      background: #111827;
-    }
-    audio {
-      width: 100%;
-    }
+
+    .topbar h1 { margin: 0; font-size: 20px; color: var(--primary); }
+
+    .meta { display: flex; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+
+    .nav { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .nav a { text-decoration: none; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--border); color: #0f172a; font-size: 13px; background: #f1f5f9; }
+    .nav a.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .card { background: var(--card); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05); padding: 18px; margin-top: 16px; }
+    .card h3 { margin: 0 0 10px; font-size: 16px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+
+    .kpi { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    .kpi .label { color: var(--muted); font-size: 12px; }
+    .kpi .value { font-size: 20px; font-weight: 700; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; }
+    th { background: #f8fafc; color: var(--muted); }
+
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #eef2ff; color: #312e81; border: 1px solid #c7d2fe; }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-<div class="container">
-  <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <div style="font-size:18px; font-weight:bold;">
-          {{ ident.sensor_name }}
-        </div>
-        <div style="font-size:12px; opacity:0.8;">
-          ID: {{ ident.box_id }}
-        </div>
+  <div class="page">
+    <div class="topbar">
+      <h1>{{ ident.sensor_name }}</h1>
+      <div class="meta">
+        <span>شناسه: {{ ident.box_id }}</span>
+        <span class="badge">باکس سنسور</span>
       </div>
-      <div style="font-size:11px; opacity:0.7;">
-        پنل باکس سنسور
+      <div class="nav">
+        <a href="{{ url_for('sensor_dashboard') }}" class="{% if request.path == '/' %}active{% endif %}">داشبورد</a>
+        <a href="{{ url_for('sensor_audio_list') }}" class="{% if '/audio' in request.path %}active{% endif %}">صداها</a>
       </div>
     </div>
 
-    <div class="nav">
-      <a href="{{ url_for('sensor_dashboard') }}"
-         class="{% if request.path == '/' %}active{% endif %}">
-        وضعیت
-      </a>
-      <a href="{{ url_for('sensor_audio_list') }}"
-         class="{% if '/audio' in request.path %}active{% endif %}">
-        صداها
-      </a>
-    </div>
+    {% block content %}{% endblock %}
   </div>
-
-  {% block content %}{% endblock %}
-</div>
 </body>
 </html>
-
