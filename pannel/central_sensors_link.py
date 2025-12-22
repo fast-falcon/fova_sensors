@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional, List
 from panel_db import kv_get, kv_set, store_sensor_sample
 from panel_paths import SENSOR_OFFLINE_SECONDS
 
-DEFAULT_SENSOR_PUSH_INTERVAL = 10.0  # ثانیه
+DEFAULT_SENSOR_PUSH_INTERVAL = 2.0  # ثانیه
 _KV_PUSH_PREFIX = "sensor_push_interval:"
 _KV_AUTH_PREFIX = "central:sensor_auth:"
 
@@ -199,4 +199,3 @@ if __name__ == "__main__":
     set_auth("S1", "u1", "p1")
     print("validate_auth:", validate_auth("S1", "u1", "p1"))
     print("✅ central_sensors_link basic test OK")
-
