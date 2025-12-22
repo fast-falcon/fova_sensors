@@ -425,7 +425,7 @@
 
     const environmentalBox = {
       id: 'env-box-1',
-      name: 'باک���� محیطی - اتاق سرور A',
+      name: 'باکس محیطی - اتاق سرور A',
       type: 'environmental',
       icon: '🏢',
       color: '#3b82f6',
@@ -664,6 +664,25 @@
 
     environmentalBox.connectedDevices = equipmentBoxes.filter(b => b.connectedTo === environmentalBox.id);
 
+    const LIVE_REFRESH_MS = 350;
+    const DATA_TARGET_MS = 2200;
+
+    function initializeLiveState(boxes) {
+      boxes.forEach(box => {
+        box.sensors.forEach(sensor => {
+          sensor.displayValue = sensor.value;
+          sensor.targetValue = sensor.value;
+        });
+        box.system.forEach(metric => {
+          metric.displayValue = metric.value;
+          metric.targetValue = metric.value;
+        });
+        box.frequency.displayValue = box.frequency.value;
+        box.frequency.targetValue = box.frequency.value;
+      });
+    }
+    initializeLiveState([environmentalBox, ...equipmentBoxes]);
+
     const errorHistory = [
       { time: '14:32', sensor: 'تجهیزات - سرور 2 - Storage', status: 'danger', value: '92%' },
       { time: '14:15', sensor: 'تجهیزات - سرور 1 - CPU', status: 'warning', value: '72%' },
@@ -775,9 +794,10 @@
 
     function renderSystemMetrics(system) {
       return system.map(metric => {
-        const status = getStatus(metric.value, metric.threshold, 'normal');
+        const value = metric.displayValue ?? metric.value;
+        const status = getStatus(value, metric.threshold, 'normal');
         const circumference = 251;
-        const offset = circumference - (metric.value / 100) * circumference;
+        const offset = circumference - (value / 100) * circumference;
 
         return `
           <div class="system-card ${status}">
@@ -788,7 +808,7 @@
                         style="stroke-dashoffset: ${offset}"></circle>
               </svg>
               <div class="circular-chart-text">
-                <div class="circular-value">${Math.round(metric.value)}</div>
+                <div class="circular-value">${Math.round(value)}</div>
                 <div class="circular-label">%</div>
               </div>
             </div>
@@ -800,7 +820,7 @@
 
     function renderFrequencyComparison(envFreq, eqFreqs) {
       const canvasId = 'chart-frequency';
-      const currentValue = envFreq.value.toFixed(1);
+      const currentValue = (envFreq.displayValue ?? envFreq.value).toFixed(1);
 
       const labelsHTML = `
         <div class="chart-labels">
@@ -824,7 +844,7 @@
               <span style="font-size: 1.3em">🔊</span>
               <span>فرکانس صوتی</span>
             </div>
-            <div class="sensor-box-value">
+            <div class="sensor-box-value" id="${environmentalBox.id}-frequency-value">
               ${currentValue} <span style="font-size: 0.6em">kHz</span>
             </div>
           </div>
@@ -952,7 +972,9 @@
 
         const canvasId = `chart-${idx}`;
         const currentValue = envSensor.status === 'disconnected' ? '--' :
-                           (envSensor.unit === 'V' ? envSensor.value.toFixed(2) : Math.round(envSensor.value));
+                           (envSensor.unit === 'V'
+                             ? (envSensor.displayValue ?? envSensor.value).toFixed(2)
+                             : Math.round(envSensor.displayValue ?? envSensor.value));
 
         const labelsHTML = `
           <div class="chart-labels">
@@ -976,7 +998,7 @@
                 <span style="font-size: 1.3em">${envSensor.icon}</span>
                 <span>${envSensor.name}</span>
               </div>
-              <div class="sensor-box-value">
+              <div class="sensor-box-value" id="${environmentalBox.id}-sensor-${idx}-value">
                 ${currentValue} <span style="font-size: 0.6em">${envSensor.unit}</span>
               </div>
             </div>
@@ -998,7 +1020,7 @@
 
           ${connectedDevices.length > 0 ? `
             <div class="section-title">
-              🔗 تجهیزات متصل (${connectedDevices.length} ����تگاه)
+              🔗 تجهیزات متصل (${connectedDevices.length} دستگاه)
             </div>
             <div class="device-pills">${devicePills}</div>
           ` : ''}
@@ -1023,7 +1045,7 @@
 
           <div class="comparison-section">
             <div class="section-title">💻 پارامترهای سیستمی</div>
-            <div class="system-metrics">
+            <div class="system-metrics" id="${environmentalBox.id}-system-metrics">
               ${renderSystemMetrics(box.system)}
             </div>
           </div>
@@ -1033,29 +1055,144 @@
       `;
     }
 
+    function mapSensorComparisons(idx) {
+      return environmentalBox.connectedDevices.map(device => ({
+        ...device.sensors[idx],
+        deviceName: device.name,
+        color: device.color
+      }));
+    }
+
+    function mapFrequencyComparisons() {
+      return environmentalBox.connectedDevices.map(device => ({
+        ...device.frequency,
+        deviceName: device.name,
+        color: device.color
+      }));
+    }
+
     function renderAll() {
       const mainGrid = document.getElementById('mainGrid');
       mainGrid.innerHTML = renderEnvironmentalBox(environmentalBox);
 
-      // ایجاد نمودارها بعد از رندر HTML
       setTimeout(() => {
         environmentalBox.sensors.forEach((envSensor, idx) => {
-          const eqSensors = environmentalBox.connectedDevices.map(device => ({
-            ...device.sensors[idx],
-            deviceName: device.name,
-            color: device.color
-          }));
-          createBarChart(`chart-${idx}`, envSensor.name, envSensor, eqSensors, envSensor.unit);
+          createBarChart(`chart-${idx}`, envSensor.name, envSensor, mapSensorComparisons(idx), envSensor.unit);
         });
 
-        // نمودار فرکانس
-        const eqFreqs = environmentalBox.connectedDevices.map(device => ({
-          ...device.frequency,
-          deviceName: device.name,
-          color: device.color
-        }));
-        createFrequencyChart('chart-frequency', environmentalBox.frequency, eqFreqs);
+        createFrequencyChart('chart-frequency', environmentalBox.frequency, mapFrequencyComparisons());
       }, 100);
+    }
+
+    function formatSensorValue(sensor) {
+      if (sensor.status === 'disconnected') return '--';
+      if (sensor.unit === 'V') return (sensor.displayValue ?? sensor.value).toFixed(2);
+      return Math.round(sensor.displayValue ?? sensor.value);
+    }
+
+    function updateValueDisplays() {
+      environmentalBox.sensors.forEach((sensor, idx) => {
+        const element = document.getElementById(`${environmentalBox.id}-sensor-${idx}-value`);
+        if (element) {
+          element.innerHTML = `${formatSensorValue(sensor)} <span style="font-size: 0.6em">${sensor.unit}</span>`;
+        }
+      });
+
+      const freqElement = document.getElementById(`${environmentalBox.id}-frequency-value`);
+      if (freqElement) {
+        const value = (environmentalBox.frequency.displayValue ?? environmentalBox.frequency.value).toFixed(1);
+        freqElement.innerHTML = `${value} <span style="font-size: 0.6em">kHz</span>`;
+      }
+    }
+
+    function refreshCharts() {
+      environmentalBox.sensors.forEach((envSensor, idx) => {
+        const chart = chartInstances[`chart-${idx}`];
+        if (!chart) return;
+
+        chart.data.datasets[0].data = [...envSensor.history];
+
+        const eqSensors = mapSensorComparisons(idx);
+        eqSensors.forEach((eqSensor, eqIdx) => {
+          const dataset = chart.data.datasets[eqIdx + 1];
+          if (dataset) {
+            dataset.data = [...eqSensor.history];
+            dataset.label = eqSensor.deviceName;
+          }
+        });
+
+        chart.update('none');
+      });
+
+      const freqChart = chartInstances['chart-frequency'];
+      if (freqChart) {
+        freqChart.data.datasets[0].data = [...environmentalBox.frequency.history];
+        const eqFreqs = mapFrequencyComparisons();
+        eqFreqs.forEach((eqFreq, idx) => {
+          const dataset = freqChart.data.datasets[idx + 1];
+          if (dataset) {
+            dataset.data = [...eqFreq.history];
+            dataset.label = eqFreq.deviceName;
+          }
+        });
+        freqChart.update('none');
+      }
+    }
+
+    function updateSystemMetrics(box) {
+      const target = document.getElementById(`${box.id}-system-metrics`);
+      if (target) {
+        target.innerHTML = renderSystemMetrics(box.system);
+      }
+    }
+
+    function clampValue(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function pushHistory(history, seed) {
+      history.shift();
+      history.push(seed);
+    }
+
+    function updateTargets(box) {
+      box.sensors.forEach(sensor => {
+        if (sensor.status === 'disconnected') return;
+        const variance = sensor.unit === 'V' ? 0.18 : 1.4;
+        sensor.targetValue = clampValue(
+          sensor.targetValue + (Math.random() - 0.5) * variance,
+          0,
+          sensor.unit === 'V' ? 5 : 100
+        );
+        pushHistory(sensor.history, sensor.displayValue);
+      });
+
+      box.system.forEach(metric => {
+        metric.targetValue = clampValue(metric.targetValue + (Math.random() - 0.5) * 3.2, 0, 100);
+      });
+
+      box.frequency.targetValue = clampValue(
+        box.frequency.targetValue + (Math.random() - 0.5) * 0.12,
+        0.5,
+        5
+      );
+      pushHistory(box.frequency.history, box.frequency.displayValue);
+    }
+
+    function smoothTowardTargets(box) {
+      box.sensors.forEach(sensor => {
+        if (sensor.status === 'disconnected') return;
+        sensor.displayValue += (sensor.targetValue - sensor.displayValue) * 0.25;
+        sensor.history[sensor.history.length - 1] = sensor.displayValue;
+        sensor.status = getStatus(sensor.displayValue, sensor.threshold, sensor.status);
+      });
+
+      box.system.forEach(metric => {
+        metric.displayValue += (metric.targetValue - metric.displayValue) * 0.18;
+      });
+
+      box.frequency.displayValue += (box.frequency.targetValue - box.frequency.displayValue) * 0.22;
+      box.frequency.history[box.frequency.history.length - 1] = box.frequency.displayValue;
     }
 
     async function onConfigChange(config) {
@@ -1078,36 +1215,21 @@
     }
 
     renderAll();
+    updateValueDisplays();
+    updateSystemMetrics(environmentalBox);
 
-    // به‌روزرسانی هر 3 ثانیه
+    const allBoxes = [environmentalBox, ...equipmentBoxes];
+
     setInterval(() => {
-      [environmentalBox, ...equipmentBoxes].forEach(box => {
-        box.sensors.forEach(sensor => {
-          if (sensor.status !== 'disconnected') {
-            sensor.value += (Math.random() - 0.5) * (sensor.unit === 'V' ? 0.1 : 1);
-            sensor.value = Math.max(0, sensor.value);
-            sensor.status = getStatus(sensor.value, sensor.threshold, sensor.status);
+      allBoxes.forEach(updateTargets);
+    }, DATA_TARGET_MS);
 
-            // به‌روزرسانی تاریخچه
-            sensor.history.shift();
-            sensor.history.push(sensor.value);
-          }
-        });
-
-        box.system.forEach(metric => {
-          metric.value += (Math.random() - 0.5) * 2;
-          metric.value = Math.max(0, Math.min(100, metric.value));
-        });
-
-        // به‌روزرسانی فرکانس
-        box.frequency.value += (Math.random() - 0.5) * 0.1;
-        box.frequency.value = Math.max(0.5, Math.min(5, box.frequency.value));
-        box.frequency.history.shift();
-        box.frequency.history.push(box.frequency.value);
-      });
-
-      renderAll();
-    }, 3000);
+    setInterval(() => {
+      allBoxes.forEach(smoothTowardTargets);
+      updateValueDisplays();
+      updateSystemMetrics(environmentalBox);
+      refreshCharts();
+    }, LIVE_REFRESH_MS);
 
     if (window.elementSdk) {
       window.elementSdk.init({
