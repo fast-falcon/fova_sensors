@@ -5,99 +5,52 @@
   <title>{% block title %}سنسور محیطی{% endblock %}</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       direction: rtl;
-      background: #0f1722;
-      color: #f5f5f5;
+      background: #f8fafc;
+      color: #0f172a;
       margin: 0;
     }
     .container {
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 24px;
     }
     .card {
-      background: #111827;
-      border-radius: 12px;
+      background: #ffffff;
+      border-radius: 16px;
       padding: 16px;
-      margin-top: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      margin-top: 14px;
+      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+      border: 1px solid #e2e8f0;
     }
-    a {
-      color: #00b894;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    .nav {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .nav { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .nav a {
-      padding: 6px 12px;
+      padding: 8px 14px;
       border-radius: 999px;
-      background: #1f2933;
+      background: #f1f5f9;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
       font-size: 13px;
     }
-    .nav a.active {
-      background: #00b894;
-      color: #fff;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      background: #1f2933;
-      color: #fff;
-    }
-    .badge.ok {
-      background: #00b894;
-    }
-    .badge.warn {
-      background: #f1c40f;
-      color: #111;
-    }
-    .badge.crit {
-      background: #e74c3c;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    th, td {
-      padding: 6px 8px;
-      border-bottom: 1px solid #1f2933;
-    }
-    th {
-      background: #111827;
-    }
-    audio {
-      width: 100%;
-    }
+    .nav a.active { background: #22c55e; color: #ffffff; border-color: #22c55e; }
+    .title { font-size: 20px; font-weight: 700; color: #1e293b; }
+    .subtitle { font-size: 12px; color: #475569; }
+    {% block base_styles %}{% endblock %}
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
 <div class="container">
   <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 12px;">
       <div>
-        <div style="font-size:18px; font-weight:bold;">
-          {{ ident.sensor_name }}
-        </div>
-        <div style="font-size:12px; opacity:0.8;">
-          ID: {{ ident.box_id }}
-        </div>
+        <div class="title">{{ ident.sensor_name }}</div>
+        <div class="subtitle">ID: {{ ident.box_id }}</div>
       </div>
-      <div style="font-size:11px; opacity:0.7;">
-        پنل باکس سنسور
-      </div>
+      <div class="subtitle">پنل باکس سنسور</div>
     </div>
 
     <div class="nav">
