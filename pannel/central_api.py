@@ -38,12 +38,7 @@ from panel_crypto import ensure_box_keypair, load_box_public_key, decrypt_with_p
 from panel_sensors_local import get_latest_env
 from panel_audio_local import get_last_audio_segment, list_audio_segments
 from panel_health import get_health_status
-from panel_db import (
-    init_db,
-    DB_PATH,
-    get_latest_sensor_sample,
-    get_sensor_history,
-)
+from panel_db import init_db, DB_PATH, get_latest_sensor_sample
 from panel_net_common import parse_basic_auth_header
 from central_sensors_link import (
     update_sensor_state_from_payload,
@@ -160,68 +155,6 @@ def _normalize_health(h: Optional["HealthStatus"]) -> Optional[Dict[str, Any]]:
     }
 
 
-def _build_history_series(sensor_id: str, current_env: Dict[str, Any]) -> Dict[str, Any]:
-    history_rows = get_sensor_history(sensor_id, limit=12)
-
-    if not history_rows and current_env:
-        history_rows = [dict(current_env)]
-
-    def _extract(key: str) -> List[Optional[float]]:
-        values: List[Optional[float]] = []
-        for row in history_rows:
-            val = row.get(key)
-            if val is None and current_env:
-                val = current_env.get(key)
-            try:
-                values.append(float(val))
-            except (TypeError, ValueError):
-                values.append(None)
-        return values
-
-    def _build_frequency_series() -> Dict[str, Any]:
-        values: List[float] = []
-        prev_ts: Optional[datetime] = None
-        for row in history_rows:
-            ts_raw = row.get("ts")
-            ts_val: Optional[datetime] = None
-            if ts_raw:
-                try:
-                    ts_str = str(ts_raw)
-                    if ts_str.endswith("Z"):
-                        ts_str = ts_str.replace("Z", "+00:00")
-                    ts_val = datetime.fromisoformat(ts_str)
-                except Exception:
-                    ts_val = None
-
-            if ts_val and prev_ts:
-                delta = (ts_val - prev_ts).total_seconds()
-                if delta > 0:
-                    values.append(max(0.0, 60.0 / delta))
-            prev_ts = ts_val
-
-        if not values:
-            values = [0.0] * max(len(history_rows), 1)
-
-        return {"value": values[-1], "history": values[-10:]}
-
-    return {
-        "timestamps": [row.get("ts") for row in history_rows],
-        "temp": _extract("temp"),
-        "hum": _extract("hum"),
-        "gas_v": _extract("gas_v"),
-        "gas_dv": _extract("gas_dv"),
-        "frequency": _build_frequency_series(),
-    }
-
-
-def _default_thresholds() -> Dict[str, Dict[str, float]]:
-    return {
-        "temp": {"warning": 30.0, "danger": 40.0},
-        "hum": {"warning": 70.0, "danger": 85.0},
-        "gas_v": {"warning": 2.0, "danger": 3.5},
-    }
-
-
 def _build_central_status() -> Dict[str, Any]:
     ident = _get_central_identity()
     # env
@@ -259,8 +192,6 @@ def _build_central_status() -> Dict[str, Any]:
         "env": env,
         "health": health,
         "audio_summary": audio_summary,
-        "history": _build_history_series(ident["box_id"], env),
-        "thresholds": _default_thresholds(),
     }
 
 
@@ -272,20 +203,18 @@ def _build_sensor_cards() -> List[Dict[str, Any]]:
         state_label = compute_state_label(st)
         audio_summary = _compose_audio_summary(st.sensor_id, st.audio_summary)
         env = _merge_env_with_db(st.env, st.sensor_id)
-            sensor_cards.append(
-                {
-                    "sensor_id": st.sensor_id,
-                    "sensor_name": st.sensor_name,
-                    "ip": st.ip,
-                    "last_seen": st.last_seen,
-                    "env": env,
-                    "audio_summary": audio_summary,
-                    "health": _normalize_health(getattr(st, "health", None)),
-                    "state": state_label,
-                    "history": _build_history_series(st.sensor_id, env),
-                    "thresholds": _default_thresholds(),
-                }
-            )
+        sensor_cards.append(
+            {
+                "sensor_id": st.sensor_id,
+                "sensor_name": st.sensor_name,
+                "ip": st.ip,
+                "last_seen": st.last_seen,
+                "env": env,
+                "audio_summary": audio_summary,
+                "health": _normalize_health(getattr(st, "health", None)),
+                "state": state_label,
+            }
+        )
 
     return sensor_cards
 
